@@ -4,8 +4,13 @@ import { useThree, type ThreeEvent } from '@react-three/fiber';
 import type { CameraControlsImpl } from '@react-three/drei';
 import { Color, Mesh, MeshStandardMaterial } from 'three';
 import { CELL_SIZE, type ObjectDef, type PlacedObject, type GridSize } from '@interna/shared';
-import { CATALOG } from '../catalog/catalog';
+import { CATALOG, MODEL_DETAILS } from '../catalog/catalog';
 import { useEditorStore } from '../store/editorStore';
+import { useInteractionStore } from '../store/interactionStore';
+import { hasInteractions } from '../interaction/actions';
+import { BooksOnShelf } from './BooksOnShelf';
+import { SpeakerModel } from './SpeakerModel';
+import { useMusicStore } from '../audio/player';
 import { footprintCenter, rotatedFootprint, rotationToRadians, worldToCell } from './grid';
 import { setCameraRotateLock } from './CameraRig';
 
@@ -15,14 +20,19 @@ const COLORS = {
   invalid: '#d9665b',
 };
 
+/** Больше стольких пикселей между нажатием и отпусканием — это вращение камеры, а не клик. */
+const CLICK_TOLERANCE_PX = 5;
+
 // Модели мебели маленькие (десятки КБ): грузим все сразу, чтобы каталог открывался без задержек.
 for (const def of Object.values(CATALOG)) {
   if (def.model) useGLTF.preload(def.model);
 }
 
 /** Как подсветить предмет: «призрак» в руке или выбранный в редакторе. */
-interface Look {
+export interface Look {
   ghost: boolean;
+  /** Светится ли плафон (у включённой лампы). */
+  glow: boolean;
   /** Цвет подсветки или null — без подсветки. */
   tint: string | null;
   tintIntensity: number;
@@ -40,8 +50,11 @@ interface Props {
 /** Предмет в комнате: glTF-модель из каталога, а пока она грузится (или если модели нет) — блок-заглушка. */
 export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid = true }: Props) {
   const editing = useEditorStore((s) => s.active);
-  const selected = useEditorStore((s) => s.selectedId === object.id && variant === 'normal');
+  const selectedInEditor = useEditorStore((s) => s.selectedId === object.id);
+  const selectedInRoom = useInteractionStore((s) => s.selectedId === object.id);
+  const selected = variant === 'normal' && (editing ? selectedInEditor : selectedInRoom);
   const controls = useThree((s) => s.controls) as unknown as CameraControlsImpl | null;
+  const playing = useMusicStore((s) => s.playing && s.speakerId === object.id && variant === 'normal');
 
   const def = CATALOG[object.defId];
   if (!def) return null;
@@ -57,6 +70,7 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
   const showMarker = ghost || selected;
   const look: Look = {
     ghost,
+    glow: !!lightOn,
     tint: ghost || selected ? markerColor : null,
     tintIntensity: ghost ? 0.45 : 0.25,
   };
@@ -74,7 +88,17 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
     if (controls) setCameraRotateLock(controls, true);
   };
 
-  const interactive = editing && !ghost;
+  // В обычном режиме клик по предмету с действиями открывает его карточку.
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
+    if (e.delta > CLICK_TOLERANCE_PX) return;
+    e.stopPropagation();
+    useInteractionStore.getState().select(object.id);
+  };
+
+  const draggable = editing && !ghost;
+  const clickable = !editing && !ghost && hasInteractions(def);
+  const cursor = draggable ? 'grab' : clickable ? 'pointer' : null;
+  const shelves = MODEL_DETAILS[def.id]?.shelves;
   const placeholder = <PlaceholderBox def={def} look={look} />;
 
   return (
@@ -82,17 +106,22 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
       <group
         position={[center.x, 0, center.z]}
         rotation={[0, rotationToRadians(object.rotation), 0]}
-        onPointerDown={interactive ? onPointerDown : undefined}
-        onPointerOver={interactive ? () => (document.body.style.cursor = 'grab') : undefined}
-        onPointerOut={interactive ? () => (document.body.style.cursor = '') : undefined}
+        onPointerDown={draggable ? onPointerDown : undefined}
+        onClick={clickable ? onClick : undefined}
+        onPointerOver={cursor ? () => (document.body.style.cursor = cursor) : undefined}
+        onPointerOut={cursor ? () => (document.body.style.cursor = '') : undefined}
       >
-        {def.model ? (
+        {MODEL_DETAILS[def.id]?.procedural === 'speaker' ? (
+          <SpeakerModel look={look} playing={playing} />
+        ) : def.model ? (
           <Suspense fallback={placeholder}>
-            <FurnitureModel url={def.model} look={look} />
+            <FurnitureModel url={def.model} look={look} shadeMaterial={MODEL_DETAILS[def.id]?.shadeMaterial} />
           </Suspense>
         ) : (
           placeholder
         )}
+
+        {shelves && !ghost && object.state.container && <BooksOnShelf books={object.state.container} layout={shelves} />}
 
         {lightOn && (
           <>
@@ -124,7 +153,9 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
  * центр — в центре занятых клеток, низ — на полу. Каждому экземпляру — свои материалы,
  * чтобы подсветка одного предмета не перекрашивала все такие же.
  */
-function FurnitureModel({ url, look }: { url: string; look: Look }) {
+const SHADE_GLOW = '#ffd29a';
+
+function FurnitureModel({ url, look, shadeMaterial }: { url: string; look: Look; shadeMaterial?: string }) {
   const { scene } = useGLTF(url);
 
   const { root, materials } = useMemo(() => {
@@ -154,11 +185,13 @@ function FurnitureModel({ url, look }: { url: string; look: Look }) {
       material.transparent = look.ghost;
       material.opacity = look.ghost ? 0.6 : 1;
       material.depthWrite = !look.ghost;
-      material.emissive = new Color(look.tint ?? '#000000');
-      material.emissiveIntensity = look.tint ? look.tintIntensity : 0;
+      // Подсветка выбора важнее свечения плафона: иначе не видно, что лампа выбрана.
+      const glows = look.glow && !look.tint && material.name === shadeMaterial;
+      material.emissive = new Color(look.tint ?? (glows ? SHADE_GLOW : '#000000'));
+      material.emissiveIntensity = look.tint ? look.tintIntensity : glows ? 0.9 : 0;
       material.needsUpdate = true;
     }
-  }, [root, materials, look.ghost, look.tint, look.tintIntensity]);
+  }, [root, materials, shadeMaterial, look.ghost, look.glow, look.tint, look.tintIntensity]);
 
   return <primitive object={root} />;
 }

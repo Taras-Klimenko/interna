@@ -3,6 +3,7 @@ import type { ThreeEvent } from '@react-three/fiber';
 import { CELL_SIZE, type GridPos, type GridSize } from '@interna/shared';
 import { useWorldStore } from '../store/worldStore';
 import { useCharacterStore } from '../store/characterStore';
+import { useInteractionStore } from '../store/interactionStore';
 import { buildOccupancy, findPath, isWalkable } from '../character/pathfinding';
 import { cellCenter, roomDimensions, worldToCell } from './grid';
 
@@ -27,6 +28,8 @@ export function FloorPicker() {
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     if (e.delta > CLICK_TOLERANCE_PX) return;
+    // Клик мимо предметов закрывает карточку выбранного предмета.
+    useInteractionStore.getState().select(null);
     const goal = cellAt(e);
     if (!goal) return;
     const start = useWorldStore.getState().world.character.pos;

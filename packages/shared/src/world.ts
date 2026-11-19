@@ -41,9 +41,39 @@ export interface ObjectDef {
   components: ComponentDef[];
 }
 
+/** Книга пользователя на полке. */
+export interface Book {
+  id: string;
+  kind: 'book';
+  title: string;
+  author: string;
+  /** Заметка: чем понравилась, о чём, где остановился. */
+  note: string;
+  /** ISO-время, когда книгу поставили на полку. */
+  addedAt: string;
+}
+
+/** То, что может лежать в предмете-контейнере. Позже добавятся заметки. */
+export type ContainerItem = Book;
+
+/** Трек пользователя. Сам файл лежит в хранилище браузера (IndexedDB) под тем же id. */
+export interface Track {
+  id: string;
+  kind: 'track';
+  title: string;
+  fileName: string;
+  /** Размер файла в байтах. */
+  size: number;
+  addedAt: string;
+}
+
 export interface ObjectState {
   light?: { on: boolean };
+  /** 0 — совсем сухо, 1 — только что полили. */
   needs?: { water: number };
+  container?: ContainerItem[];
+  /** Плейлист колонки. Играет ли она сейчас — состояние плеера, оно не сохраняется. */
+  media?: { playlist: Track[]; current?: string };
 }
 
 /** Предмет, поставленный в комнату. */

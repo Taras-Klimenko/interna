@@ -3,6 +3,7 @@ import { CELL_SIZE, type GridSize } from '@interna/shared';
 import { CATALOG } from '../catalog/catalog';
 import { useEditorStore } from '../store/editorStore';
 import { useWorldStore } from '../store/worldStore';
+import { Notice } from './Notice';
 
 const NARROW = '(max-width: 767px)';
 const isNarrow = () => typeof window !== 'undefined' && window.matchMedia(NARROW).matches;
@@ -123,24 +124,5 @@ export function EditorPanel() {
 
       <Notice notice={notice} />
     </>
-  );
-}
-
-/** Всплывающее сообщение на пару секунд. Новое сообщение (новый seq) показывается заново. */
-function Notice({ notice }: { notice: { text: string; seq: number } | null }) {
-  const [visibleSeq, setVisibleSeq] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!notice) return;
-    setVisibleSeq(notice.seq);
-    const timer = window.setTimeout(() => setVisibleSeq(null), 2000);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
-
-  if (!notice || visibleSeq !== notice.seq) return null;
-  return (
-    <div className="notice" role="status">
-      {notice.text}
-    </div>
   );
 }

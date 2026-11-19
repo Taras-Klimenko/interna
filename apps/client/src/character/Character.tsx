@@ -7,6 +7,7 @@ import { useEditorStore } from '../store/editorStore';
 import { cellCenter } from '../scene/grid';
 import { CharacterModel } from './CharacterModel';
 import { IDLE_CLIP, WALK_CLIP } from './assets';
+import { ACTIONS, completeTask } from '../interaction/actions';
 
 /** Скорость ходьбы в м/с: подобрана под шаг клипа Walk_Loop, чтобы ноги не «скользили». */
 const WALK_SPEED = 1.15;
@@ -35,6 +36,15 @@ export function Character() {
   const targetYaw = useRef(0);
   const [moving, setMoving] = useState(false);
 
+  /** Дошли до предмета: поворачиваемся к нему лицом и начинаем анимацию дела. */
+  const beginTask = useCallback(() => {
+    const { task } = useCharacterStore.getState();
+    const group = ref.current;
+    if (!task || task.phase !== 'walking' || !group) return;
+    targetYaw.current = Math.atan2(task.face.x - group.position.x, task.face.z - group.position.z);
+    useCharacterStore.setState({ task: { ...task, phase: 'acting' }, manualClip: ACTIONS[task.action].clip });
+  }, []);
+
   // Стартовая позиция — из сохранённого мира. Её же берём после сброса комнаты (teleportSeq).
   useEffect(() => {
     const start = useWorldStore.getState().world.character.pos;
@@ -47,11 +57,12 @@ export function Character() {
 
   // Начали обставлять комнату: персонаж доходит до ближайшей клетки маршрута и останавливается,
   // чтобы не пройти сквозь только что поставленную мебель. Эта клетка остаётся «занятой» для редактора.
+  // Дело при этом отменяется: предмет могут передвинуть или убрать.
   useEffect(() => {
     if (!editing) return;
     const next = waypoints.current[0];
     waypoints.current = next ? [next] : [];
-    useCharacterStore.setState({ target: next?.cell ?? null });
+    useCharacterStore.setState({ target: next?.cell ?? null, task: null, manualClip: null });
   }, [editing]);
 
   // Новый маршрут.
@@ -61,7 +72,9 @@ export function Character() {
       return { point: new Vector3(c.x, 0, c.z), cell };
     });
     setMoving(waypoints.current.length > 0);
-  }, [path, roomSize]);
+    // Уже стоим рядом с предметом — идти никуда не нужно, сразу делаем дело.
+    if (waypoints.current.length === 0) beginTask();
+  }, [path, roomSize, beginTask]);
 
   useFrame((_, delta) => {
     const group = ref.current;
@@ -80,6 +93,7 @@ export function Character() {
         if (waypoints.current.length === 0) {
           setMoving(false);
           arrive();
+          beginTask();
         }
       } else {
         group.position.addScaledVector(toNext, step / dist);
@@ -100,9 +114,13 @@ export function Character() {
   }, [clip, setCurrentClip]);
 
   // Разовый клип доиграл — возвращаемся к ожиданию.
+  // Если это была анимация дела — сначала применяем его эффект (свет, полив).
   const onClipFinished = useCallback(
     (finished: string) => {
-      if (useCharacterStore.getState().manualClip === finished) playClip(null);
+      const { manualClip, task } = useCharacterStore.getState();
+      if (manualClip !== finished) return;
+      if (task?.phase === 'acting') completeTask();
+      playClip(null);
     },
     [playClip],
   );

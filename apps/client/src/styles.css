@@ -374,6 +374,308 @@ body,
   pointer-events: none;
 }
 
+/* Предметы: карточка и книжный шкаф */
+.object-bar-status {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.object-bar button:disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: transparent;
+}
+
+.sheet {
+  position: absolute;
+  top: 76px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  max-height: calc(100% - 200px);
+  padding: 14px 16px 16px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 24px rgba(74, 59, 49, 0.12);
+  font-size: 13px;
+}
+
+.sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sheet-title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.sheet-subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.sheet-close,
+.book-remove {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sheet-close:hover,
+.book-remove:hover {
+  background: rgba(201, 132, 95, 0.14);
+  color: var(--ink);
+}
+
+.sheet-body {
+  margin-top: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sheet-empty {
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+}
+
+.book-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.book {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 6px 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.book-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.book-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.book-author {
+  color: var(--ink-soft);
+}
+
+.book-note {
+  font-size: 12px;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.book-form {
+  display: grid;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.book-form h3 {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.book-form input,
+.book-form textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+
+.book-form input:focus,
+.book-form textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.book-submit {
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.book-submit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Колонка: плеер и плейлист */
+.player {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.player-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.player-time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+
+.player-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.player-buttons button {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.player-buttons button:hover:not(:disabled) {
+  background: rgba(201, 132, 95, 0.14);
+}
+
+.player-buttons button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.player-buttons .player-main {
+  background: var(--accent);
+  color: #fff;
+}
+
+.player-buttons .player-main:hover {
+  background: #b9734f;
+}
+
+.player-volume {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.track-list {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+}
+
+.track[data-current='true'] {
+  background: rgba(201, 132, 95, 0.14);
+}
+
+.track-play {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.track-play:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.track-mark {
+  flex: none;
+  width: 16px;
+  font-size: 11px;
+  color: var(--accent);
+  text-align: center;
+}
+
+.track-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-body > .book-submit {
+  width: 100%;
+}
+
 /* Касания и телефоны */
 .app canvas {
   touch-action: none;
@@ -456,5 +758,21 @@ button {
 
   .notice {
     bottom: 186px;
+  }
+
+  .sheet {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 70%;
+    z-index: 2;
+  }
+
+  /* Поля ввода от 16px — иначе iOS приближает страницу при фокусе. */
+  .book-form input,
+  .book-form textarea {
+    font-size: 16px;
   }
 }

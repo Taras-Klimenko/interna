@@ -59,12 +59,12 @@ const items: ObjectDef[] = [
   fromModel('plant', 'Houseplant_8', { name: 'Растение', color: '#6f9a5f', components: [{ type: 'needs', need: 'water' }] }),
   fromModel('plantSmall', 'Houseplant_4', { name: 'Цветок в горшке', color: '#6f9a5f', components: [{ type: 'needs', need: 'water' }] }),
   fromModel('plantBush', 'Houseplant_7', { name: 'Куст', color: '#6f9a5f', components: [{ type: 'needs', need: 'water' }] }),
-  // Колонки в наборе нет — пока заглушка.
+  // Колонки в наборе нет — она собирается из простых фигур прямо в сцене (scene/SpeakerModel).
   placeholder('speaker', {
     name: 'Колонка',
     color: '#5d6470',
     footprint: { w: 1, h: 1 },
-    height: 0.4,
+    height: 0.86,
     components: [{ type: 'media', kind: 'audio' }],
   }),
   fromModel('rug', 'Carpet_1', { name: 'Ковёр', color: '#c98a6a' }),
@@ -73,3 +73,33 @@ const items: ObjectDef[] = [
 
 /** Все предметы, которые можно поставить в комнату. Порядок — как в панели каталога. */
 export const CATALOG: Record<string, ObjectDef> = Object.fromEntries(items.map((item) => [item.id, item]));
+
+/** Полки, на которые ставятся книги. Размеры — в метрах, в системе координат модели (перед смотрит в +z). */
+export interface ShelfLayout {
+  /** Высоты верхней поверхности полок, в порядке заполнения: сначала на уровне глаз. */
+  levels: number[];
+  /** Внутренняя ширина полки. */
+  width: number;
+  /** Где задняя стенка (z), к ней книги прижимаются корешком наружу. */
+  backZ: number;
+  /** Свободная высота над полкой. */
+  clearance: number;
+  /** Сколько книг на одну полку, чтобы шкаф не выглядел забитым. */
+  perShelf: number;
+}
+
+/** Детали моделей, нужные для взаимодействия. Цифры сняты с геометрии собранной модели и годятся только для неё. */
+export const MODEL_DETAILS: Record<string, { shelves?: ShelfLayout; shadeMaterial?: string; procedural?: 'speaker' }> = {
+  bookshelf: {
+    shelves: {
+      levels: [0.796, 1.055, 0.536, 1.315, 0.276, 1.575, 0.019],
+      width: 0.9,
+      backZ: -0.14,
+      clearance: 0.245,
+      perShelf: 12,
+    },
+  },
+  // Плафон торшера светится, когда свет включён.
+  floorLamp: { shadeMaterial: 'White' },
+  speaker: { procedural: 'speaker' },
+};

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import type { CharacterAppearance, GridPos, PlacedObject, Rotation, World } from '@interna/shared';
+import type { Book, CharacterAppearance, GridPos, PlacedObject, Rotation, Track, World } from '@interna/shared';
 import { buildOccupancy, nearestWalkable } from '../character/pathfinding';
 
 /** Стартовая расстановка: её же возвращает кнопка «Сбросить комнату». */
@@ -34,7 +34,7 @@ const initialWorld: World = {
   },
 };
 
-function newObjectId() {
+export function newId() {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `o-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -51,6 +51,13 @@ interface WorldStore {
   moveObject: (id: string, pos: GridPos, rotation: Rotation) => void;
   removeObject: (id: string) => void;
   resetRoom: () => void;
+  setLight: (id: string, on: boolean) => void;
+  water: (id: string) => void;
+  addBook: (objectId: string, book: Pick<Book, 'title' | 'author' | 'note'>) => void;
+  removeBook: (objectId: string, bookId: string) => void;
+  addTracks: (objectId: string, tracks: Track[]) => void;
+  removeTrack: (objectId: string, trackId: string) => void;
+  setCurrentTrack: (objectId: string, trackId: string) => void;
 }
 
 /** Ключ в localStorage. Номер версии меняем, когда формат World ломается несовместимо. */
@@ -71,7 +78,7 @@ export const useWorldStore = create<WorldStore>()(
           s.world.character.pos = pos;
         }),
       addObject: (defId, pos, rotation) => {
-        const id = newObjectId();
+        const id = newId();
         set((s) => {
           s.world.objects.push({ id, defId, pos, rotation, state: {} });
         });
@@ -96,6 +103,45 @@ export const useWorldStore = create<WorldStore>()(
           const free = nearestWalkable(blocked, s.world.character.pos);
           if (free) s.world.character.pos = free;
           s.teleportSeq += 1;
+        }),
+      setLight: (id, on) =>
+        set((s) => {
+          const object = s.world.objects.find((o) => o.id === id);
+          if (object) object.state.light = { on };
+        }),
+      water: (id) =>
+        set((s) => {
+          const object = s.world.objects.find((o) => o.id === id);
+          if (object) object.state.needs = { water: 1 };
+        }),
+      addBook: (objectId, book) =>
+        set((s) => {
+          const object = s.world.objects.find((o) => o.id === objectId);
+          if (!object) return;
+          (object.state.container ??= []).push({ id: newId(), kind: 'book', ...book, addedAt: new Date().toISOString() });
+        }),
+      removeBook: (objectId, bookId) =>
+        set((s) => {
+          const object = s.world.objects.find((o) => o.id === objectId);
+          if (object?.state.container) object.state.container = object.state.container.filter((b) => b.id !== bookId);
+        }),
+      addTracks: (objectId, tracks) =>
+        set((s) => {
+          const object = s.world.objects.find((o) => o.id === objectId);
+          if (!object) return;
+          (object.state.media ??= { playlist: [] }).playlist.push(...tracks);
+        }),
+      removeTrack: (objectId, trackId) =>
+        set((s) => {
+          const media = s.world.objects.find((o) => o.id === objectId)?.state.media;
+          if (!media) return;
+          media.playlist = media.playlist.filter((t) => t.id !== trackId);
+          if (media.current === trackId) delete media.current;
+        }),
+      setCurrentTrack: (objectId, trackId) =>
+        set((s) => {
+          const media = s.world.objects.find((o) => o.id === objectId)?.state.media;
+          if (media) media.current = trackId;
         }),
     })),
     {
