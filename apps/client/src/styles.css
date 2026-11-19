@@ -251,6 +251,129 @@ body,
   color: var(--ink-soft);
 }
 
+/* Режим расстановки */
+.hud-toolbar button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.hud-toolbar .hud-mode {
+  font-weight: 600;
+}
+
+.catalog {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.catalog-item:hover {
+  border-color: var(--accent);
+}
+
+.catalog-item[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: rgba(201, 132, 95, 0.16);
+}
+
+.catalog-swatch {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(74, 59, 49, 0.15);
+}
+
+.catalog-name {
+  flex: 1;
+}
+
+.catalog-size {
+  font-size: 12px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.object-bar {
+  position: absolute;
+  bottom: 104px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 24px);
+  padding: 5px 6px 5px 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 24px rgba(74, 59, 49, 0.12);
+  font-size: 13px;
+}
+
+.object-bar-name {
+  margin-right: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.object-bar-ok {
+  font-weight: 400;
+  color: #4f9a54;
+}
+
+.object-bar-bad {
+  font-weight: 400;
+  color: #c4554a;
+}
+
+.object-bar button {
+  height: 32px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.object-bar button:hover {
+  background: rgba(201, 132, 95, 0.14);
+}
+
+.notice {
+  position: absolute;
+  bottom: 156px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(74, 59, 49, 0.88);
+  color: #fff;
+  font-size: 13px;
+  pointer-events: none;
+}
+
 /* Касания и телефоны */
 .app canvas {
   touch-action: none;
@@ -312,5 +435,26 @@ button {
 
   .chip {
     padding: 8px 12px;
+  }
+
+  .object-bar {
+    bottom: 100px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 6px;
+  }
+
+  .object-bar-name {
+    width: 100%;
+    margin: 0 0 2px;
+    text-align: center;
+  }
+
+  .object-bar button {
+    height: 38px;
+  }
+
+  .notice {
+    bottom: 186px;
   }
 }

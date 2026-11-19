@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { Vector3, type Group } from 'three';
 import { useWorldStore } from '../store/worldStore';
 import { useCharacterStore } from '../store/characterStore';
+import { useEditorStore } from '../store/editorStore';
 import { cellCenter } from '../scene/grid';
 import { CharacterModel } from './CharacterModel';
 import { IDLE_CLIP, WALK_CLIP } from './assets';
@@ -25,6 +26,8 @@ export function Character() {
   const arrive = useCharacterStore((s) => s.arrive);
   const playClip = useCharacterStore((s) => s.playClip);
   const setCurrentClip = useCharacterStore((s) => s.setCurrentClip);
+  const editing = useEditorStore((s) => s.active);
+  const teleportSeq = useWorldStore((s) => s.teleportSeq);
 
   const ref = useRef<Group>(null);
   const waypoints = useRef<{ point: Vector3; cell: { x: number; z: number } }[]>([]);
@@ -32,12 +35,24 @@ export function Character() {
   const targetYaw = useRef(0);
   const [moving, setMoving] = useState(false);
 
-  // Стартовая позиция — из сохранённого мира.
+  // Стартовая позиция — из сохранённого мира. Её же берём после сброса комнаты (teleportSeq).
   useEffect(() => {
     const start = useWorldStore.getState().world.character.pos;
     const c = cellCenter(start, roomSize);
     ref.current?.position.set(c.x, 0, c.z);
-  }, [roomSize]);
+    waypoints.current = [];
+    setMoving(false);
+    useCharacterStore.getState().arrive();
+  }, [roomSize, teleportSeq]);
+
+  // Начали обставлять комнату: персонаж доходит до ближайшей клетки маршрута и останавливается,
+  // чтобы не пройти сквозь только что поставленную мебель. Эта клетка остаётся «занятой» для редактора.
+  useEffect(() => {
+    if (!editing) return;
+    const next = waypoints.current[0];
+    waypoints.current = next ? [next] : [];
+    useCharacterStore.setState({ target: next?.cell ?? null });
+  }, [editing]);
 
   // Новый маршрут.
   useEffect(() => {

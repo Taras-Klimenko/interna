@@ -5,6 +5,7 @@ import { MathUtils, type Group } from 'three';
 import { CELL_SIZE, WALL_HEIGHT } from '@interna/shared';
 import { useWorldStore } from '../store/worldStore';
 import { useUiStore } from '../store/uiStore';
+import { useEditorStore } from '../store/editorStore';
 import { roomDimensions } from './grid';
 
 const WALL_THICKNESS = 0.12;
@@ -22,7 +23,10 @@ const COLORS = {
 
 export function Room() {
   const size = useWorldStore((s) => s.world.room.size);
-  const showGrid = useUiStore((s) => s.showGrid);
+  // В режиме расстановки сетка видна всегда.
+  const gridToggled = useUiStore((s) => s.showGrid);
+  const editing = useEditorStore((s) => s.active);
+  const showGrid = gridToggled || editing;
   const { width, depth } = roomDimensions(size);
   const outerW = width + WALL_THICKNESS * 2;
   const outerD = depth + WALL_THICKNESS * 2;

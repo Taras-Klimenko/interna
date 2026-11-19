@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import { CameraControls, CameraControlsImpl } from '@react-three/drei';
 import { useUiStore } from '../store/uiStore';
+import { useEditorStore } from '../store/editorStore';
 
 const { ACTION } = CameraControlsImpl;
 
@@ -18,12 +19,23 @@ function fitDistance(aspect: number) {
 }
 
 /**
+ * Отключает вращение левой кнопкой и одним пальцем, пока в руке предмет.
+ * Вызывается и напрямую из обработчика нажатия: React перерисует CameraRig позже,
+ * а камера читает эти настройки уже на первом движении мыши.
+ */
+export function setCameraRotateLock(controls: CameraControlsImpl, locked: boolean) {
+  controls.mouseButtons.left = locked ? ACTION.NONE : ACTION.ROTATE;
+  controls.touches.one = locked ? ACTION.NONE : ACTION.TOUCH_ROTATE;
+}
+
+/**
  * Камера-диорама: вращение мышью вокруг комнаты, Q/E — поворот на 90° к следующему углу,
  * колесо — приближение. Сдвига (pan) нет, камера всегда смотрит в центр комнаты.
  */
 export function CameraRig() {
   const ref = useRef<CameraControlsImpl>(null);
   const rotateRequest = useUiStore((s) => s.rotateRequest);
+  const rotateLocked = useEditorStore((s) => s.draft !== null || s.grab !== null);
   const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
   const startDistance = useRef(fitDistance(aspect)).current;
 
@@ -59,8 +71,8 @@ export function CameraRig() {
       maxPolarAngle={1.2}
       smoothTime={0.3}
       draggingSmoothTime={0.12}
-      mouseButtons={{ left: ACTION.ROTATE, middle: ACTION.DOLLY, right: ACTION.NONE, wheel: ACTION.DOLLY }}
-      touches={{ one: ACTION.TOUCH_ROTATE, two: ACTION.TOUCH_DOLLY, three: ACTION.NONE }}
+      mouseButtons={{ left: rotateLocked ? ACTION.NONE : ACTION.ROTATE, middle: ACTION.DOLLY, right: ACTION.NONE, wheel: ACTION.DOLLY }}
+      touches={{ one: rotateLocked ? ACTION.NONE : ACTION.TOUCH_ROTATE, two: ACTION.TOUCH_DOLLY, three: ACTION.NONE }}
     />
   );
 }

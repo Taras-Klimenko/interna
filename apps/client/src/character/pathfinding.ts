@@ -1,16 +1,15 @@
 import type { GridPos, GridSize, PlacedObject } from '@interna/shared';
 import { CATALOG } from '../catalog/placeholders';
 import { rotatedFootprint } from '../scene/grid';
-
-/** Предметы ниже этой высоты (ковры) не мешают ходить. */
-const WALKABLE_HEIGHT = 0.05;
+import { FLAT_HEIGHT } from '../editor/placement';
 
 /** Карта занятых клеток: blocked[z][x] === true — пройти нельзя. */
 export function buildOccupancy(size: GridSize, objects: PlacedObject[]): boolean[][] {
   const blocked = Array.from({ length: size.h }, () => Array<boolean>(size.w).fill(false));
   for (const object of objects) {
     const def = CATALOG[object.defId];
-    if (!def || def.height < WALKABLE_HEIGHT) continue;
+    // Ковры и прочие плоские предметы не мешают ходить.
+    if (!def || def.height < FLAT_HEIGHT) continue;
     const fp = rotatedFootprint(def.footprint, object.rotation);
     for (let dz = 0; dz < fp.h; dz++) {
       for (let dx = 0; dx < fp.w; dx++) {
@@ -24,6 +23,22 @@ export function buildOccupancy(size: GridSize, objects: PlacedObject[]): boolean
 
 export function isWalkable(blocked: boolean[][], cell: GridPos) {
   return blocked[cell.z]?.[cell.x] === false;
+}
+
+/** Ближайшая свободная клетка (по расширяющимся квадратам) или null, если свободных нет. */
+export function nearestWalkable(blocked: boolean[][], from: GridPos): GridPos | null {
+  const h = blocked.length;
+  const w = blocked[0]?.length ?? 0;
+  for (let r = 0; r <= Math.max(w, h); r++) {
+    for (let dz = -r; dz <= r; dz++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        const cell = { x: from.x + dx, z: from.z + dz };
+        if (isWalkable(blocked, cell)) return cell;
+      }
+    }
+  }
+  return null;
 }
 
 const DIRS = [
