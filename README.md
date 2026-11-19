@@ -1,0 +1,60 @@
+# Interna
+
+Уютная 3D-комната, которую вы обставляете своими вещами, и в которой живёт ИИ-персонаж. Видение MVP: [docs/MVP.md](docs/MVP.md).
+
+## Запуск
+
+```bash
+pnpm install
+pnpm dev        # клиент на http://localhost:5173
+pnpm typecheck
+pnpm build
+pnpm assets:characters   # пересобрать модели персонажей (см. assets/LICENSES.md)
+pnpm assets:inspect <file.glb>   # показать анимации, кости и материалы модели
+```
+
+## Деплой на Vercel
+
+Клиент — статический сайт, сервер не нужен. Настройки сборки лежат в [apps/client/vercel.json](apps/client/vercel.json).
+
+1. Создать репозиторий на GitHub и запушить проект.
+2. На [vercel.com](https://vercel.com) войти через GitHub → **Add New → Project** → выбрать репозиторий.
+3. **Root Directory: `apps/client`**. Остальное (Vite, pnpm, команда сборки, папка `dist`) Vercel возьмёт сам или из `vercel.json`.
+4. **Deploy**. Дальше каждый `git push` в основную ветку обновляет сайт, а каждая другая ветка получает свою ссылку для предпросмотра.
+
+Заметки:
+- Node 24 задан в `engines` в `package.json`.
+- Модели (`/models/*`) кэшируются браузером на сутки; JS и CSS из `/assets/*` — навсегда (у них хэш в имени).
+- Бесплатный тариф Vercel (Hobby) — только для некоммерческого использования.
+- Сайт по ссылке публичный. Ключи API (для ИИ-персонажа) в клиент класть нельзя — только на сервер.
+
+Проверить сборку локально так, как её увидит Vercel:
+
+```bash
+pnpm build
+pnpm --filter @interna/client preview   # http://localhost:4173
+```
+
+## Структура
+
+```
+apps/client/       Vite + React + React Three Fiber
+  src/scene/       3D-сцена: комната, стены, камера, предметы, клик по полу
+  src/character/   персонаж: модель, причёски, анимации, поиск пути (A*)
+  public/models/   собранные GLB (результат assets/scripts)
+  src/store/       Zustand-сторы (мир, UI)
+  src/catalog/     каталог предметов (пока заглушки-блоки)
+  src/ui/          интерфейс поверх сцены
+packages/shared/   общие TS-типы мира: World, ObjectDef, PlacedObject, Character
+assets/scripts/    сборка и проверка 3D-моделей (glTF-Transform)
+assets/source/     исходные архивы ассетов (в git не попадают)
+docs/              документы по продукту
+```
+
+## Управление
+
+- Клик по полу — персонаж идёт туда в обход мебели.
+- Перетаскивание мышью — вращать камеру вокруг комнаты.
+- Колесо — приблизить или отдалить.
+- `Q` / `E` — повернуть камеру к соседнему углу комнаты.
+- `G` — показать или скрыть сетку.

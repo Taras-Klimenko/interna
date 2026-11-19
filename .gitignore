@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Исходники ассетов: архивы и распакованные наборы не коммитим, только результат сборки в apps/client/public/models
+assets/source/**/*.zip
+assets/source/**/_unpacked/
+assets/.work/
