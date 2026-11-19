@@ -1,8 +1,10 @@
-import { RoundedBox } from '@react-three/drei';
+import { Suspense, useEffect, useMemo } from 'react';
+import { RoundedBox, useGLTF } from '@react-three/drei';
 import { useThree, type ThreeEvent } from '@react-three/fiber';
 import type { CameraControlsImpl } from '@react-three/drei';
-import { CELL_SIZE, type PlacedObject, type GridSize } from '@interna/shared';
-import { CATALOG } from '../catalog/placeholders';
+import { Color, Mesh, MeshStandardMaterial } from 'three';
+import { CELL_SIZE, type ObjectDef, type PlacedObject, type GridSize } from '@interna/shared';
+import { CATALOG } from '../catalog/catalog';
 import { useEditorStore } from '../store/editorStore';
 import { footprintCenter, rotatedFootprint, rotationToRadians, worldToCell } from './grid';
 import { setCameraRotateLock } from './CameraRig';
@@ -13,6 +15,19 @@ const COLORS = {
   invalid: '#d9665b',
 };
 
+// Модели мебели маленькие (десятки КБ): грузим все сразу, чтобы каталог открывался без задержек.
+for (const def of Object.values(CATALOG)) {
+  if (def.model) useGLTF.preload(def.model);
+}
+
+/** Как подсветить предмет: «призрак» в руке или выбранный в редакторе. */
+interface Look {
+  ghost: boolean;
+  /** Цвет подсветки или null — без подсветки. */
+  tint: string | null;
+  tintIntensity: number;
+}
+
 interface Props {
   object: PlacedObject;
   roomSize: GridSize;
@@ -22,7 +37,7 @@ interface Props {
   valid?: boolean;
 }
 
-/** Заглушка предмета: скруглённый блок по размеру footprint. Заменится на glTF-модель. */
+/** Предмет в комнате: glTF-модель из каталога, а пока она грузится (или если модели нет) — блок-заглушка. */
 export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid = true }: Props) {
   const editing = useEditorStore((s) => s.active);
   const selected = useEditorStore((s) => s.selectedId === object.id && variant === 'normal');
@@ -34,16 +49,17 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
   const ghost = variant === 'ghost';
   const occupied = rotatedFootprint(def.footprint, object.rotation);
   const center = footprintCenter(object.pos, occupied, roomSize);
-  // Сам блок строится по исходному footprint и поворачивается целиком.
-  const w = def.footprint.w * CELL_SIZE * 0.92;
-  const d = def.footprint.h * CELL_SIZE * 0.92;
-  const radius = Math.min(0.05, def.height / 2 - 0.001, w / 2, d / 2);
 
   const isLight = def.components.some((c) => c.type === 'light');
   const lightOn = !ghost && isLight && object.state.light?.on;
 
   const markerColor = ghost ? (valid ? COLORS.valid : COLORS.invalid) : COLORS.selected;
   const showMarker = ghost || selected;
+  const look: Look = {
+    ghost,
+    tint: ghost || selected ? markerColor : null,
+    tintIntensity: ghost ? 0.45 : 0.25,
+  };
 
   // В режиме расстановки нажатие на предмет выбирает его, а сдвиг — начинает перенос (см. EditorController).
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
@@ -59,39 +75,35 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
   };
 
   const interactive = editing && !ghost;
+  const placeholder = <PlaceholderBox def={def} look={look} />;
 
   return (
     <group>
-      <group position={[center.x, 0, center.z]} rotation={[0, rotationToRadians(object.rotation), 0]}>
-        <RoundedBox
-          args={[w, def.height, d]}
-          radius={Math.max(radius, 0.001)}
-          smoothness={3}
-          position={[0, def.height / 2, 0]}
-          castShadow={!ghost}
-          receiveShadow={!ghost}
-          onPointerDown={interactive ? onPointerDown : undefined}
-          onPointerOver={interactive ? () => (document.body.style.cursor = 'grab') : undefined}
-          onPointerOut={interactive ? () => (document.body.style.cursor = '') : undefined}
-        >
-          <meshStandardMaterial
-            color={def.placeholderColor}
-            roughness={0.8}
-            transparent={ghost}
-            opacity={ghost ? 0.6 : 1}
-            depthWrite={!ghost}
-            emissive={ghost || selected ? markerColor : '#000000'}
-            emissiveIntensity={ghost ? 0.45 : selected ? 0.25 : 0}
-          />
-        </RoundedBox>
+      <group
+        position={[center.x, 0, center.z]}
+        rotation={[0, rotationToRadians(object.rotation), 0]}
+        onPointerDown={interactive ? onPointerDown : undefined}
+        onPointerOver={interactive ? () => (document.body.style.cursor = 'grab') : undefined}
+        onPointerOut={interactive ? () => (document.body.style.cursor = '') : undefined}
+      >
+        {def.model ? (
+          <Suspense fallback={placeholder}>
+            <FurnitureModel url={def.model} look={look} />
+          </Suspense>
+        ) : (
+          placeholder
+        )}
 
         {lightOn && (
           <>
-            <mesh position={[0, def.height + 0.08, 0]} raycast={() => null}>
-              <sphereGeometry args={[0.12, 16, 16]} />
-              <meshStandardMaterial color="#fff3c4" emissive="#ffd27a" emissiveIntensity={2} />
-            </mesh>
-            <pointLight position={[0, def.height + 0.1, 0]} color="#ffc983" intensity={3} distance={4} decay={2} />
+            {/* У заглушки лампы нет — рисуем светящийся шар сверху. У модели плафон уже есть. */}
+            {!def.model && (
+              <mesh position={[0, def.height + 0.08, 0]}>
+                <sphereGeometry args={[0.12, 16, 16]} />
+                <meshStandardMaterial color="#fff3c4" emissive="#ffd27a" emissiveIntensity={2} />
+              </mesh>
+            )}
+            <pointLight position={[0, def.height * 0.9, 0]} color="#ffc983" intensity={3} distance={4} decay={2} />
           </>
         )}
       </group>
@@ -104,5 +116,77 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
         </mesh>
       )}
     </group>
+  );
+}
+
+/**
+ * glTF-модель мебели. Модель уже отцентрована и отмасштабирована скриптом сборки:
+ * центр — в центре занятых клеток, низ — на полу. Каждому экземпляру — свои материалы,
+ * чтобы подсветка одного предмета не перекрашивала все такие же.
+ */
+function FurnitureModel({ url, look }: { url: string; look: Look }) {
+  const { scene } = useGLTF(url);
+
+  const { root, materials } = useMemo(() => {
+    const root = scene.clone(true);
+    const materials: MeshStandardMaterial[] = [];
+    root.traverse((child) => {
+      if (!(child instanceof Mesh)) return;
+      const source = child.material;
+      if (source instanceof MeshStandardMaterial) {
+        const material = source.clone();
+        child.material = material;
+        materials.push(material);
+      }
+    });
+    return { root, materials };
+  }, [scene]);
+
+  useEffect(() => () => materials.forEach((m) => m.dispose()), [materials]);
+
+  useEffect(() => {
+    root.traverse((child) => {
+      if (!(child instanceof Mesh)) return;
+      child.castShadow = !look.ghost;
+      child.receiveShadow = !look.ghost;
+    });
+    for (const material of materials) {
+      material.transparent = look.ghost;
+      material.opacity = look.ghost ? 0.6 : 1;
+      material.depthWrite = !look.ghost;
+      material.emissive = new Color(look.tint ?? '#000000');
+      material.emissiveIntensity = look.tint ? look.tintIntensity : 0;
+      material.needsUpdate = true;
+    }
+  }, [root, materials, look.ghost, look.tint, look.tintIntensity]);
+
+  return <primitive object={root} />;
+}
+
+function PlaceholderBox({ def, look }: { def: ObjectDef; look: Look }) {
+  // Блок строится по исходному footprint и поворачивается вместе с группой.
+  const w = def.footprint.w * CELL_SIZE * 0.92;
+  const d = def.footprint.h * CELL_SIZE * 0.92;
+  const radius = Math.min(0.05, def.height / 2 - 0.001, w / 2, d / 2);
+
+  return (
+    <RoundedBox
+      args={[w, def.height, d]}
+      radius={Math.max(radius, 0.001)}
+      smoothness={3}
+      position={[0, def.height / 2, 0]}
+      castShadow={!look.ghost}
+      receiveShadow={!look.ghost}
+    >
+      <meshStandardMaterial
+        color={def.placeholderColor}
+        roughness={0.8}
+        transparent={look.ghost}
+        opacity={look.ghost ? 0.6 : 1}
+        depthWrite={!look.ghost}
+        emissive={look.tint ?? '#000000'}
+        emissiveIntensity={look.tint ? look.tintIntensity : 0}
+      />
+    </RoundedBox>
   );
 }

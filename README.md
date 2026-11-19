@@ -43,7 +43,7 @@ apps/client/       Vite + React + React Three Fiber
   src/character/   персонаж: модель, причёски, анимации, поиск пути (A*)
   public/models/   собранные GLB (результат assets/scripts)
   src/store/       Zustand-сторы (мир, UI)
-  src/catalog/     каталог предметов (пока заглушки-блоки)
+  src/catalog/     каталог предметов; furniture.generated.json пишет pnpm assets:furniture
   src/ui/          интерфейс поверх сцены
 packages/shared/   общие TS-типы мира: World, ObjectDef, PlacedObject, Character
 assets/scripts/    сборка и проверка 3D-моделей (glTF-Transform)

@@ -1,5 +1,5 @@
 import type { GridPos, GridSize, PlacedObject, Rotation } from '@interna/shared';
-import { CATALOG } from '../catalog/placeholders';
+import { CATALOG } from '../catalog/catalog';
 import { rotatedFootprint } from '../scene/grid';
 
 /** Предметы ниже этой высоты (ковры) лежат на полу: по ним можно ходить и ставить на них мебель. */

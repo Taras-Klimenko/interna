@@ -1,0 +1,138 @@
+{
+  "Bed_Single": {
+    "url": "/models/furniture/Bed_Single.glb",
+    "footprint": {
+      "w": 2,
+      "h": 4
+    },
+    "height": 0.657
+  },
+  "Bed_King": {
+    "url": "/models/furniture/Bed_King.glb",
+    "footprint": {
+      "w": 3,
+      "h": 4
+    },
+    "height": 0.571
+  },
+  "Bookshelf": {
+    "url": "/models/furniture/Bookshelf.glb",
+    "footprint": {
+      "w": 2,
+      "h": 1
+    },
+    "height": 1.838
+  },
+  "Drawer_1": {
+    "url": "/models/furniture/Drawer_1.glb",
+    "footprint": {
+      "w": 3,
+      "h": 1
+    },
+    "height": 0.581
+  },
+  "NightStand_1": {
+    "url": "/models/furniture/NightStand_1.glb",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "height": 0.412
+  },
+  "Table_RoundSmall": {
+    "url": "/models/furniture/Table_RoundSmall.glb",
+    "footprint": {
+      "w": 2,
+      "h": 2
+    },
+    "height": 0.567
+  },
+  "Chair_1": {
+    "url": "/models/furniture/Chair_1.glb",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "height": 0.884
+  },
+  "Stool": {
+    "url": "/models/furniture/Stool.glb",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "height": 0.686
+  },
+  "Couch_Small2": {
+    "url": "/models/furniture/Couch_Small2.glb",
+    "footprint": {
+      "w": 2,
+      "h": 2
+    },
+    "height": 0.576
+  },
+  "Couch_Medium2": {
+    "url": "/models/furniture/Couch_Medium2.glb",
+    "footprint": {
+      "w": 5,
+      "h": 2
+    },
+    "height": 0.941
+  },
+  "Light_Stand1": {
+    "url": "/models/furniture/Light_Stand1.glb",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "height": 1.497
+  },
+  "Houseplant_4": {
+    "url": "/models/furniture/Houseplant_4.glb",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "height": 0.464
+  },
+  "Houseplant_7": {
+    "url": "/models/furniture/Houseplant_7.glb",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "height": 0.347
+  },
+  "Houseplant_8": {
+    "url": "/models/furniture/Houseplant_8.glb",
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "height": 0.778
+  },
+  "Carpet_1": {
+    "url": "/models/furniture/Carpet_1.glb",
+    "footprint": {
+      "w": 2,
+      "h": 3
+    },
+    "height": 0.016
+  },
+  "Carpet_Round": {
+    "url": "/models/furniture/Carpet_Round.glb",
+    "footprint": {
+      "w": 3,
+      "h": 3
+    },
+    "height": 0.008
+  },
+  "Fireplace": {
+    "url": "/models/furniture/Fireplace.glb",
+    "footprint": {
+      "w": 3,
+      "h": 1
+    },
+    "height": 1.062
+  }
+}

@@ -6,14 +6,19 @@ import { buildOccupancy, nearestWalkable } from '../character/pathfinding';
 
 /** Стартовая расстановка: её же возвращает кнопка «Сбросить комнату». */
 const initialObjects: PlacedObject[] = [
+  // Вдоль задней стены (z = 0): кровать изголовьем к стене, тумбочка, растение, шкаф, колонка, комод.
   { id: 'o1', defId: 'bed', pos: { x: 0, z: 0 }, rotation: 0, state: {} },
-  { id: 'o2', defId: 'bookshelf', pos: { x: 4, z: 0 }, rotation: 0, state: {} },
-  { id: 'o3', defId: 'desk', pos: { x: 7, z: 0 }, rotation: 0, state: {} },
-  { id: 'o4', defId: 'plant', pos: { x: 9, z: 0 }, rotation: 0, state: { needs: { water: 0.6 } } },
+  { id: 'o2', defId: 'nightstand', pos: { x: 2, z: 0 }, rotation: 0, state: {} },
+  { id: 'o3', defId: 'plant', pos: { x: 3, z: 0 }, rotation: 0, state: { needs: { water: 0.6 } } },
+  { id: 'o4', defId: 'bookshelf', pos: { x: 4, z: 0 }, rotation: 0, state: {} },
   { id: 'o5', defId: 'speaker', pos: { x: 6, z: 0 }, rotation: 0, state: {} },
-  { id: 'o6', defId: 'rug', pos: { x: 3, z: 5 }, rotation: 0, state: {} },
-  { id: 'o7', defId: 'armchair', pos: { x: 7, z: 6 }, rotation: 270, state: {} },
-  { id: 'o8', defId: 'floorLamp', pos: { x: 9, z: 5 }, rotation: 0, state: { light: { on: true } } },
+  { id: 'o6', defId: 'dresser', pos: { x: 7, z: 0 }, rotation: 0, state: {} },
+  // Гостиная зона: диван у левой стены лицом в комнату, ковёр, кресло напротив, торшер и куст в углу.
+  { id: 'o7', defId: 'sofa', pos: { x: 0, z: 5 }, rotation: 270, state: {} },
+  { id: 'o8', defId: 'rugRound', pos: { x: 3, z: 5 }, rotation: 0, state: {} },
+  { id: 'o9', defId: 'armchair', pos: { x: 7, z: 6 }, rotation: 90, state: {} },
+  { id: 'o10', defId: 'floorLamp', pos: { x: 9, z: 5 }, rotation: 0, state: { light: { on: true } } },
+  { id: 'o11', defId: 'plantBush', pos: { x: 9, z: 9 }, rotation: 0, state: {} },
 ];
 
 /** Стартовый мир, пока нет онбординга. */

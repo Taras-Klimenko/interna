@@ -1,5 +1,5 @@
 import type { GridPos, GridSize, PlacedObject } from '@interna/shared';
-import { CATALOG } from '../catalog/placeholders';
+import { CATALOG } from '../catalog/catalog';
 import { rotatedFootprint } from '../scene/grid';
 import { FLAT_HEIGHT } from '../editor/placement';
 

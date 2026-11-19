@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CELL_SIZE, type GridSize } from '@interna/shared';
-import { CATALOG } from '../catalog/placeholders';
+import { CATALOG } from '../catalog/catalog';
 import { useEditorStore } from '../store/editorStore';
 import { useWorldStore } from '../store/worldStore';
 
