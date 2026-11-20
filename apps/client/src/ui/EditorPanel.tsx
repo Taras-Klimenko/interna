@@ -4,6 +4,7 @@ import { CATALOG } from '../catalog/catalog';
 import { useEditorStore } from '../store/editorStore';
 import { useWorldStore } from '../store/worldStore';
 import { Notice } from './Notice';
+import { FLOOR_STYLES, WALL_STYLES, floorStyle, surfacePreview, wallStyle, type SurfaceStyle } from '../scene/roomStyles';
 
 const NARROW = '(max-width: 767px)';
 const isNarrow = () => typeof window !== 'undefined' && window.matchMedia(NARROW).matches;
@@ -93,6 +94,7 @@ export function EditorPanel() {
 
           <section className="panel-section">
             <h3>Комната</h3>
+            <RoomStylePickers />
             <button type="button" className="chip" onClick={onReset}>
               Сбросить комнату
             </button>
@@ -108,9 +110,12 @@ export function EditorPanel() {
             {activeDef.name}
             {draft && <span className={draft.valid ? 'object-bar-ok' : 'object-bar-bad'}>{draft.valid ? ' · можно поставить' : ' · не помещается'}</span>}
           </span>
-          <button type="button" onClick={rotate} title="Повернуть (R)">
-            Повернуть
-          </button>
+          {/* Настенный предмет поворачивается сам — смотрит от стены, к которой его прижали. */}
+          {!activeDef.mount && (
+            <button type="button" onClick={rotate} title="Повернуть (R)">
+              Повернуть
+            </button>
+          )}
           {canRemove && (
             <button type="button" onClick={removeSelected} title="Убрать из комнаты (Del)">
               Убрать
@@ -124,5 +129,52 @@ export function EditorPanel() {
 
       <Notice notice={notice} />
     </>
+  );
+}
+
+/** Выбор пола и обоев: образцы с настоящим узором. */
+function RoomStylePickers() {
+  const floor = floorStyle(useWorldStore((s) => s.world.room.floor));
+  const wall = wallStyle(useWorldStore((s) => s.world.room.wall));
+  const setRoomStyle = useWorldStore((s) => s.setRoomStyle);
+  return (
+    <>
+      <StylePicker label="Пол" styles={FLOOR_STYLES} current={floor} onPick={(id) => setRoomStyle({ floor: id })} />
+      <StylePicker label="Стены" styles={WALL_STYLES} current={wall} onPick={(id) => setRoomStyle({ wall: id })} />
+    </>
+  );
+}
+
+function StylePicker({
+  label,
+  styles,
+  current,
+  onPick,
+}: {
+  label: string;
+  styles: SurfaceStyle[];
+  current: SurfaceStyle;
+  onPick: (id: string) => void;
+}) {
+  return (
+    <div className="style-picker" role="group" aria-label={label}>
+      <span className="style-picker-label">
+        {label}: <b>{current.name}</b>
+      </span>
+      <div className="style-row">
+        {styles.map((style) => (
+          <button
+            key={style.id}
+            type="button"
+            className="style-swatch"
+            aria-pressed={style.id === current.id}
+            aria-label={style.name}
+            title={style.name}
+            style={{ backgroundImage: `url(${surfacePreview(style)})` }}
+            onClick={() => onPick(style.id)}
+          />
+        ))}
+      </div>
+    </div>
   );
 }

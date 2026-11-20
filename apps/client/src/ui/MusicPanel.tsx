@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { Track } from '@interna/shared';
 import { CATALOG } from '../catalog/catalog';
 import { pause, playTrack, resume, seek, setVolume, step, stop, useMusicStore } from '../audio/player';
-import { deleteTrackFile, requestPersistentStorage, saveTrackFile } from '../audio/trackFiles';
+import { requestPersistentStorage, trackFiles } from '../storage/files';
 import { useInteractionStore } from '../store/interactionStore';
 import { newId, useWorldStore } from '../store/worldStore';
 
@@ -72,7 +72,7 @@ export function MusicPanel() {
           size: file.size,
           addedAt: new Date().toISOString(),
         };
-        await saveTrackFile(track.id, file);
+        await trackFiles.save(track.id, file);
         added.push(track);
       }
     } catch (error) {
@@ -88,7 +88,7 @@ export function MusicPanel() {
     if (!window.confirm(`Убрать «${track.title}» из плейлиста? Файл удалится из браузера.`)) return;
     if (ours && music.trackId === track.id) stop();
     useWorldStore.getState().removeTrack(speaker.id, track.id);
-    void deleteTrackFile(track.id).catch(() => undefined);
+    void trackFiles.remove(track.id).catch(() => undefined);
   };
 
   const togglePlay = () => {

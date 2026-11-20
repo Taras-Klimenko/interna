@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { GridPos, Rotation } from '@interna/shared';
 import { useWorldStore } from './worldStore';
 import { useCharacterStore } from './characterStore';
-import { canPlace, clampToRoom, findFreeSpot, footprintOf, nextRotation } from '../editor/placement';
+import { canPlace, clampToRoom, findFreeSpot, findFreeWallSpot, footprintOf, isWallMounted, nextRotation } from '../editor/placement';
 
 /**
  * Предмет «в руке»: новый из каталога (sourceId = null) или уже стоящий, который переносим.
@@ -34,8 +34,8 @@ interface EditorStore {
   startPlacing: (defId: string) => void;
   /** Начать переносить стоящий предмет, ухватив его за клетку grabCell. */
   startMoving: (id: string, grabCell: GridPos) => void;
-  /** Курсор над клеткой cell — двигаем предмет в руке. */
-  moveDraftTo: (cell: GridPos) => void;
+  /** Курсор над клеткой cell — двигаем предмет в руке. Настенному предмету передаём и поворот: к какой стене он прижат. */
+  moveDraftTo: (cell: GridPos, rotation?: Rotation) => void;
   /** Поставить предмет из руки. false — не поместился. */
   commit: () => boolean;
   cancel: () => void;
@@ -84,6 +84,11 @@ export const useEditorStore = create<EditorStore>()((set, get) => {
 
     startPlacing: (defId) => {
       const { world } = useWorldStore.getState();
+      if (isWallMounted(defId)) {
+        const spot = findFreeWallSpot(defId, world.room.size, world.objects) ?? { pos: { x: 0, z: 0 }, rotation: 0 as Rotation };
+        set({ selectedId: null, draft: withValidity({ defId, ...spot, offset: { x: 0, z: 0 }, sourceId: null }) });
+        return;
+      }
       const rotation: Rotation = 0;
       const fp = footprintOf(defId, rotation);
       const center = { x: Math.floor((world.room.size.w - fp.w) / 2), z: Math.floor((world.room.size.h - fp.h) / 2) };
@@ -109,17 +114,18 @@ export const useEditorStore = create<EditorStore>()((set, get) => {
       });
     },
 
-    moveDraftTo: (cell) => {
+    moveDraftTo: (cell, rotation) => {
       const { draft } = get();
       if (!draft) return;
       const room = useWorldStore.getState().world.room.size;
+      const facing = rotation ?? draft.rotation;
       const pos = clampToRoom(
         { x: cell.x - draft.offset.x, z: cell.z - draft.offset.z },
-        footprintOf(draft.defId, draft.rotation),
+        footprintOf(draft.defId, facing),
         room,
       );
-      if (pos.x === draft.pos.x && pos.z === draft.pos.z) return;
-      set({ draft: withValidity({ ...draft, pos }) });
+      if (pos.x === draft.pos.x && pos.z === draft.pos.z && facing === draft.rotation) return;
+      set({ draft: withValidity({ ...draft, pos, rotation: facing }) });
     },
 
     commit: () => {
@@ -153,6 +159,11 @@ export const useEditorStore = create<EditorStore>()((set, get) => {
     rotate: () => {
       const { draft, selectedId } = get();
       const { world, moveObject } = useWorldStore.getState();
+      const defId = draft?.defId ?? world.objects.find((o) => o.id === selectedId)?.defId;
+      if (defId && isWallMounted(defId)) {
+        notify('Настенный предмет смотрит в комнату — перетащите его на другую стену');
+        return;
+      }
 
       if (draft) {
         // Поворачиваем вокруг клетки под курсором.

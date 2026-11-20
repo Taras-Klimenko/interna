@@ -8,8 +8,8 @@ export function buildOccupancy(size: GridSize, objects: PlacedObject[]): boolean
   const blocked = Array.from({ length: size.h }, () => Array<boolean>(size.w).fill(false));
   for (const object of objects) {
     const def = CATALOG[object.defId];
-    // Ковры и прочие плоские предметы не мешают ходить.
-    if (!def || def.height < FLAT_HEIGHT) continue;
+    // Ковры, плоские и настенные предметы не мешают ходить.
+    if (!def || def.mount || def.height < FLAT_HEIGHT) continue;
     const fp = rotatedFootprint(def.footprint, object.rotation);
     for (let dz = 0; dz < fp.h; dz++) {
       for (let dx = 0; dx < fp.w; dx++) {

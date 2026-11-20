@@ -20,7 +20,7 @@ export function ObjectCard() {
   const playingTrackId = useMusicStore((s) => (s.speakerId === selectedId ? s.trackId : null));
   const { select, openPanel } = useInteractionStore.getState();
 
-  // Esc закрывает карточку (если открыта панель шкафа или колонки — сначала её).
+  // Esc закрывает карточку (если открыта панель предмета — сначала её).
   useEffect(() => {
     if (!selectedId || panelOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -98,6 +98,11 @@ export function ObjectCard() {
               Плейлист
             </button>
           )}
+          {has(def, 'display') && (
+            <button type="button" onClick={() => openPanel('frame', object.id)}>
+              {object.state.display?.photo ? 'Фото' : 'Выбрать фото'}
+            </button>
+          )}
           <button type="button" onClick={() => select(null)} title="Esc" aria-label="Закрыть">
             ✕
           </button>
@@ -123,6 +128,11 @@ function statusOf(object: PlacedObject, def: ObjectDef): string {
   if (has(def, 'media')) {
     const count = object.state.media?.playlist.length ?? 0;
     parts.push(count === 0 ? 'нет музыки' : 'тихо');
+  }
+  if (has(def, 'display')) {
+    const photo = object.state.display?.photo;
+    const caption = photo?.caption && (photo.caption.length > 40 ? `${photo.caption.slice(0, 39)}…` : photo.caption);
+    parts.push(!photo ? 'пустая' : caption ? `«${caption}»` : 'фото на стене');
   }
   const capacity = bookCapacity(def);
   if (capacity !== null) {

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { Track } from '@interna/shared';
 import { useWorldStore } from '../store/worldStore';
 import { useInteractionStore } from '../store/interactionStore';
-import { deleteUnusedTrackFiles, loadTrackFile } from './trackFiles';
+import { trackFiles } from '../storage/files';
 
 /**
  * Плеер комнаты: один <audio> на всё приложение, играет одна колонка за раз.
@@ -95,7 +95,7 @@ async function startPlayback() {
 
 /** Включить конкретный трек колонки. */
 export async function playTrack(speakerId: string, trackId: string) {
-  const blob = await loadTrackFile(trackId).catch(() => undefined);
+  const blob = await trackFiles.load(trackId).catch(() => undefined);
   if (!blob) {
     useInteractionStore.getState().notify('Файл трека не найден в этом браузере');
     return;
@@ -159,7 +159,7 @@ export function syncPlayerWithWorld() {
   const usedIds = new Set(
     useWorldStore.getState().world.objects.flatMap((o) => o.state.media?.playlist.map((t) => t.id) ?? []),
   );
-  void deleteUnusedTrackFiles(usedIds).catch(() => undefined);
+  void trackFiles.removeUnused(usedIds).catch(() => undefined);
 
   return useWorldStore.subscribe((state) => {
     const { speakerId, trackId } = useMusicStore.getState();

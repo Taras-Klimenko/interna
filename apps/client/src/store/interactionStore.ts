@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
-/** Панель предмета: книжный шкаф или плейлист колонки. */
-export type ObjectPanel = { kind: 'shelf' | 'music'; id: string };
+/** Панель предмета: книжный шкаф, плейлист колонки или фото в рамке. */
+export type ObjectPanel = { kind: 'shelf' | 'music' | 'frame'; id: string };
 
 /** Обычный режим (не расстановка): какой предмет выбран и какая его панель открыта. Не сохраняется. */
 interface InteractionStore {

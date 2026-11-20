@@ -24,13 +24,14 @@ function fromModel(id: string, model: FurnitureModel, spec: ItemSpec): ObjectDef
   };
 }
 
-function placeholder(id: string, spec: ItemSpec & Pick<ObjectDef, 'footprint' | 'height'>): ObjectDef {
+function placeholder(id: string, spec: ItemSpec & Pick<ObjectDef, 'footprint' | 'height' | 'mount'>): ObjectDef {
   return {
     id,
     name: spec.name,
     placeholderColor: spec.color,
     footprint: spec.footprint,
     height: spec.height,
+    mount: spec.mount,
     components: spec.components ?? [],
   };
 }
@@ -67,6 +68,26 @@ const items: ObjectDef[] = [
     height: 0.86,
     components: [{ type: 'media', kind: 'audio' }],
   }),
+  // Рамка тоже собирается в сцене (scene/PhotoFrame) и подстраивается под пропорции фото.
+  placeholder('photoFrame', {
+    name: 'Рамка с фото',
+    color: '#6b4a35',
+    footprint: { w: 1, h: 1 },
+    height: 0.46,
+    // Низ рамки — над комодом и камином, но выше шкафа её не повесить.
+    mount: { kind: 'wall', bottom: 1.15 },
+    components: [{ type: 'display', kind: 'image' }],
+  }),
+  // Окна в наборе рассчитаны на проём в стене, а наши стены сплошные — окно тоже собирается в сцене (scene/WindowModel).
+  placeholder('window', {
+    name: 'Окно',
+    color: '#9cc7e6',
+    footprint: { w: 2, h: 1 },
+    height: 1.1,
+    // Подоконник на уровне спинки дивана: под окном встанут диван, комод, кровать, но не шкаф и не торшер.
+    mount: { kind: 'wall', bottom: 0.98 },
+    components: [{ type: 'window' }],
+  }),
   fromModel('rug', 'Carpet_1', { name: 'Ковёр', color: '#c98a6a' }),
   fromModel('rugRound', 'Carpet_Round', { name: 'Круглый ковёр', color: '#c98a6a' }),
 ];
@@ -89,7 +110,7 @@ export interface ShelfLayout {
 }
 
 /** Детали моделей, нужные для взаимодействия. Цифры сняты с геометрии собранной модели и годятся только для неё. */
-export const MODEL_DETAILS: Record<string, { shelves?: ShelfLayout; shadeMaterial?: string; procedural?: 'speaker' }> = {
+export const MODEL_DETAILS: Record<string, { shelves?: ShelfLayout; shadeMaterial?: string; procedural?: 'speaker' | 'frame' | 'window' }> = {
   bookshelf: {
     shelves: {
       levels: [0.796, 1.055, 0.536, 1.315, 0.276, 1.575, 0.019],
@@ -102,4 +123,6 @@ export const MODEL_DETAILS: Record<string, { shelves?: ShelfLayout; shadeMateria
   // Плафон торшера светится, когда свет включён.
   floorLamp: { shadeMaterial: 'White' },
   speaker: { procedural: 'speaker' },
+  photoFrame: { procedural: 'frame' },
+  window: { procedural: 'window' },
 };

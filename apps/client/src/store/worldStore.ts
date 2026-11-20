@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import type { Book, CharacterAppearance, GridPos, PlacedObject, Rotation, Track, World } from '@interna/shared';
+import type { Book, CharacterAppearance, GridPos, Photo, PlacedObject, Rotation, Track, World } from '@interna/shared';
 import { buildOccupancy, nearestWalkable } from '../character/pathfinding';
 
 /** Стартовая расстановка: её же возвращает кнопка «Сбросить комнату». */
@@ -19,6 +19,10 @@ const initialObjects: PlacedObject[] = [
   { id: 'o9', defId: 'armchair', pos: { x: 7, z: 6 }, rotation: 90, state: {} },
   { id: 'o10', defId: 'floorLamp', pos: { x: 9, z: 5 }, rotation: 0, state: { light: { on: true } } },
   { id: 'o11', defId: 'plantBush', pos: { x: 9, z: 9 }, rotation: 0, state: {} },
+  // Пустая рамка над тумбочкой: ждёт ваше фото.
+  { id: 'o12', defId: 'photoFrame', pos: { x: 2, z: 0 }, rotation: 0, state: {} },
+  // Окно над комодом.
+  { id: 'o13', defId: 'window', pos: { x: 7, z: 0 }, rotation: 0, state: {} },
 ];
 
 /** Стартовый мир, пока нет онбординга. */
@@ -51,6 +55,8 @@ interface WorldStore {
   moveObject: (id: string, pos: GridPos, rotation: Rotation) => void;
   removeObject: (id: string) => void;
   resetRoom: () => void;
+  /** Пол и обои: id варианта из scene/roomStyles. */
+  setRoomStyle: (patch: { floor?: string; wall?: string }) => void;
   setLight: (id: string, on: boolean) => void;
   water: (id: string) => void;
   addBook: (objectId: string, book: Pick<Book, 'title' | 'author' | 'note'>) => void;
@@ -58,6 +64,9 @@ interface WorldStore {
   addTracks: (objectId: string, tracks: Track[]) => void;
   removeTrack: (objectId: string, trackId: string) => void;
   setCurrentTrack: (objectId: string, trackId: string) => void;
+  /** Повесить фото в рамку (undefined — снять). Файл сохраняет и удаляет вызывающий. */
+  setPhoto: (objectId: string, photo: Photo | undefined) => void;
+  setPhotoCaption: (objectId: string, caption: string) => void;
 }
 
 /** Ключ в localStorage. Номер версии меняем, когда формат World ломается несовместимо. */
@@ -104,6 +113,10 @@ export const useWorldStore = create<WorldStore>()(
           if (free) s.world.character.pos = free;
           s.teleportSeq += 1;
         }),
+      setRoomStyle: (patch) =>
+        set((s) => {
+          Object.assign(s.world.room, patch);
+        }),
       setLight: (id, on) =>
         set((s) => {
           const object = s.world.objects.find((o) => o.id === id);
@@ -142,6 +155,16 @@ export const useWorldStore = create<WorldStore>()(
         set((s) => {
           const media = s.world.objects.find((o) => o.id === objectId)?.state.media;
           if (media) media.current = trackId;
+        }),
+      setPhoto: (objectId, photo) =>
+        set((s) => {
+          const object = s.world.objects.find((o) => o.id === objectId);
+          if (object) object.state.display = photo ? { photo } : {};
+        }),
+      setPhotoCaption: (objectId, caption) =>
+        set((s) => {
+          const photo = s.world.objects.find((o) => o.id === objectId)?.state.display?.photo;
+          if (photo) photo.caption = caption;
         }),
     })),
     {

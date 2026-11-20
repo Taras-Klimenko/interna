@@ -1,8 +1,8 @@
-import { Suspense, useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { RoundedBox, useGLTF } from '@react-three/drei';
-import { useThree, type ThreeEvent } from '@react-three/fiber';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import type { CameraControlsImpl } from '@react-three/drei';
-import { Color, Mesh, MeshStandardMaterial } from 'three';
+import { Color, MathUtils, Mesh, MeshStandardMaterial, type PointLight } from 'three';
 import { CELL_SIZE, type ObjectDef, type PlacedObject, type GridSize } from '@interna/shared';
 import { CATALOG, MODEL_DETAILS } from '../catalog/catalog';
 import { useEditorStore } from '../store/editorStore';
@@ -10,15 +10,24 @@ import { useInteractionStore } from '../store/interactionStore';
 import { hasInteractions } from '../interaction/actions';
 import { BooksOnShelf } from './BooksOnShelf';
 import { SpeakerModel } from './SpeakerModel';
+import { PhotoFrame } from './PhotoFrame';
+import { WindowModel } from './WindowModel';
 import { useMusicStore } from '../audio/player';
 import { footprintCenter, rotatedFootprint, rotationToRadians, worldToCell } from './grid';
 import { setCameraRotateLock } from './CameraRig';
+import { isFlat } from '../editor/placement';
 
 const COLORS = {
   selected: '#c9845f',
   valid: '#6fbf73',
   invalid: '#d9665b',
 };
+
+/**
+ * Насколько приподнять ковёр над полом. У моделей ковров нижняя (и почти вся верхняя) поверхность —
+ * ровно на высоте пола, и без зазора ковёр и пол «мерцают» полосами (z-fighting).
+ */
+const FLAT_LIFT = 0.005;
 
 /** Больше стольких пикселей между нажатием и отпусканием — это вращение камеры, а не клик. */
 const CLICK_TOLERANCE_PX = 5;
@@ -63,6 +72,7 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
   const occupied = rotatedFootprint(def.footprint, object.rotation);
   const center = footprintCenter(object.pos, occupied, roomSize);
 
+  const flat = isFlat(def.id);
   const isLight = def.components.some((c) => c.type === 'light');
   const lightOn = !ghost && isLight && object.state.light?.on;
 
@@ -98,24 +108,29 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
   const draggable = editing && !ghost;
   const clickable = !editing && !ghost && hasInteractions(def);
   const cursor = draggable ? 'grab' : clickable ? 'pointer' : null;
-  const shelves = MODEL_DETAILS[def.id]?.shelves;
+  const details = MODEL_DETAILS[def.id];
+  const shelves = details?.shelves;
   const placeholder = <PlaceholderBox def={def} look={look} />;
 
   return (
     <group>
       <group
-        position={[center.x, 0, center.z]}
+        position={[center.x, flat ? FLAT_LIFT : 0, center.z]}
         rotation={[0, rotationToRadians(object.rotation), 0]}
         onPointerDown={draggable ? onPointerDown : undefined}
         onClick={clickable ? onClick : undefined}
         onPointerOver={cursor ? () => (document.body.style.cursor = cursor) : undefined}
         onPointerOut={cursor ? () => (document.body.style.cursor = '') : undefined}
       >
-        {MODEL_DETAILS[def.id]?.procedural === 'speaker' ? (
+        {details?.procedural === 'speaker' ? (
           <SpeakerModel look={look} playing={playing} />
+        ) : details?.procedural === 'frame' ? (
+          <PhotoFrame def={def} look={look} photo={object.state.display?.photo} rotation={object.rotation} />
+        ) : details?.procedural === 'window' ? (
+          <WindowModel def={def} look={look} rotation={object.rotation} />
         ) : def.model ? (
           <Suspense fallback={placeholder}>
-            <FurnitureModel url={def.model} look={look} shadeMaterial={MODEL_DETAILS[def.id]?.shadeMaterial} />
+            <FurnitureModel url={def.model} look={look} shadeMaterial={details?.shadeMaterial} castShadow={!flat} />
           </Suspense>
         ) : (
           placeholder
@@ -123,18 +138,14 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
 
         {shelves && !ghost && object.state.container && <BooksOnShelf books={object.state.container} layout={shelves} />}
 
-        {lightOn && (
-          <>
-            {/* У заглушки лампы нет — рисуем светящийся шар сверху. У модели плафон уже есть. */}
-            {!def.model && (
-              <mesh position={[0, def.height + 0.08, 0]}>
-                <sphereGeometry args={[0.12, 16, 16]} />
-                <meshStandardMaterial color="#fff3c4" emissive="#ffd27a" emissiveIntensity={2} />
-              </mesh>
-            )}
-            <pointLight position={[0, def.height * 0.9, 0]} color="#ffc983" intensity={3} distance={4} decay={2} />
-          </>
+        {/* У заглушки лампы нет — рисуем светящийся шар сверху. У модели плафон уже есть. */}
+        {lightOn && !def.model && (
+          <mesh position={[0, def.height + 0.08, 0]}>
+            <sphereGeometry args={[0.12, 16, 16]} />
+            <meshStandardMaterial color="#fff3c4" emissive="#ffd27a" emissiveIntensity={2} />
+          </mesh>
         )}
+        {isLight && !ghost && <LampLight on={!!lightOn} height={def.height * 0.9} />}
       </group>
 
       {/* Занимаемые клетки на полу: у выбранного предмета и у предмета в руке. */}
@@ -148,6 +159,22 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
   );
 }
 
+/** Сила света включённой лампы. Ночью она главный источник света в комнате, днём — едва заметна. */
+const LAMP_INTENSITY = 4;
+
+/**
+ * Свет лампы. Источник есть всегда, а при выключении гаснет до нуля: если добавлять и убирать
+ * источник света, Three.js пересобирает шейдеры всех материалов, и картинка на миг подвисает.
+ */
+function LampLight({ on, height }: { on: boolean; height: number }) {
+  const light = useRef<PointLight>(null);
+  useFrame((_, delta) => {
+    if (light.current) light.current.intensity = MathUtils.damp(light.current.intensity, on ? LAMP_INTENSITY : 0, 8, delta);
+  });
+  // intensity={0} — только начальное значение, дальше силой света управляет useFrame.
+  return <pointLight ref={light} position={[0, height, 0]} color="#ffc37a" intensity={0} distance={5} decay={2} />;
+}
+
 /**
  * glTF-модель мебели. Модель уже отцентрована и отмасштабирована скриптом сборки:
  * центр — в центре занятых клеток, низ — на полу. Каждому экземпляру — свои материалы,
@@ -155,7 +182,8 @@ export function PlacedObjectMesh({ object, roomSize, variant = 'normal', valid =
  */
 const SHADE_GLOW = '#ffd29a';
 
-function FurnitureModel({ url, look, shadeMaterial }: { url: string; look: Look; shadeMaterial?: string }) {
+/** castShadow: ковру тень не нужна — она лишь даёт рябь на тонкой модели. */
+function FurnitureModel({ url, look, shadeMaterial, castShadow = true }: { url: string; look: Look; shadeMaterial?: string; castShadow?: boolean }) {
   const { scene } = useGLTF(url);
 
   const { root, materials } = useMemo(() => {
@@ -178,7 +206,7 @@ function FurnitureModel({ url, look, shadeMaterial }: { url: string; look: Look;
   useEffect(() => {
     root.traverse((child) => {
       if (!(child instanceof Mesh)) return;
-      child.castShadow = !look.ghost;
+      child.castShadow = castShadow && !look.ghost;
       child.receiveShadow = !look.ghost;
     });
     for (const material of materials) {
@@ -191,7 +219,7 @@ function FurnitureModel({ url, look, shadeMaterial }: { url: string; look: Look;
       material.emissiveIntensity = look.tint ? look.tintIntensity : glows ? 0.9 : 0;
       material.needsUpdate = true;
     }
-  }, [root, materials, shadeMaterial, look.ghost, look.glow, look.tint, look.tintIntensity]);
+  }, [root, materials, shadeMaterial, castShadow, look.ghost, look.glow, look.tint, look.tintIntensity]);
 
   return <primitive object={root} />;
 }

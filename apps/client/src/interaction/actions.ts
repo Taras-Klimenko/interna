@@ -49,7 +49,12 @@ export const ACTIONS: Record<ActionId, ActionDef> = {
 /** Есть ли у предмета что-то, кроме «просто стоять»: такие предметы открывают карточку по клику. */
 export function hasInteractions(def: ObjectDef) {
   return def.components.some(
-    (c) => c.type === 'light' || c.type === 'needs' || c.type === 'media' || (c.type === 'container' && c.accepts === 'book'),
+    (c) =>
+      c.type === 'light' ||
+      c.type === 'needs' ||
+      c.type === 'media' ||
+      c.type === 'display' ||
+      (c.type === 'container' && c.accepts === 'book'),
   );
 }
 

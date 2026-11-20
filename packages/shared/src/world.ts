@@ -38,6 +38,11 @@ export interface ObjectDef {
   footprint: GridSize;
   /** Высота в метрах. */
   height: number;
+  /**
+   * Предмет висит на стене (рамка): стоит в клетке у стены и смотрит в комнату.
+   * Не мешает ходить, а под ним можно поставить мебель ниже `bottom` метров.
+   */
+  mount?: { kind: 'wall'; bottom: number };
   components: ComponentDef[];
 }
 
@@ -67,6 +72,18 @@ export interface Track {
   addedAt: string;
 }
 
+/** Фото пользователя в рамке. Сама картинка лежит в хранилище браузера (IndexedDB) под тем же id. */
+export interface Photo {
+  id: string;
+  kind: 'photo';
+  /** Размер картинки в пикселях: по нему рамка подстраивает пропорции. */
+  width: number;
+  height: number;
+  /** Что на фото — своими словами. Позже это будет знать персонаж. */
+  caption: string;
+  addedAt: string;
+}
+
 export interface ObjectState {
   light?: { on: boolean };
   /** 0 — совсем сухо, 1 — только что полили. */
@@ -74,6 +91,8 @@ export interface ObjectState {
   container?: ContainerItem[];
   /** Плейлист колонки. Играет ли она сейчас — состояние плеера, оно не сохраняется. */
   media?: { playlist: Track[]; current?: string };
+  /** Что висит в рамке. */
+  display?: { photo?: Photo };
 }
 
 /** Предмет, поставленный в комнату. */
