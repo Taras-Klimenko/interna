@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import type { Book, CharacterAppearance, GridPos, Photo, PlacedObject, Rotation, Track, World } from '@interna/shared';
+import type { Book, CharacterAppearance, ReadingProgress, GridPos, Photo, PlacedObject, Rotation, Track, World } from '@interna/shared';
 import { buildOccupancy, nearestWalkable } from '../character/pathfinding';
 
 /** Стартовая расстановка: её же возвращает кнопка «Сбросить комнату». */
@@ -59,8 +59,10 @@ interface WorldStore {
   setRoomStyle: (patch: { floor?: string; wall?: string }) => void;
   setLight: (id: string, on: boolean) => void;
   water: (id: string) => void;
-  addBook: (objectId: string, book: Pick<Book, 'title' | 'author' | 'note'>) => void;
+  /** Книга из файла приходит со своим id: под ним файл уже лежит в хранилище. */
+  addBook: (objectId: string, book: Pick<Book, 'title' | 'author' | 'note'> & Partial<Pick<Book, 'id' | 'file' | 'color'>>) => void;
   removeBook: (objectId: string, bookId: string) => void;
+  setBookProgress: (objectId: string, bookId: string, progress: ReadingProgress) => void;
   addTracks: (objectId: string, tracks: Track[]) => void;
   removeTrack: (objectId: string, trackId: string) => void;
   setCurrentTrack: (objectId: string, trackId: string) => void;
@@ -132,6 +134,11 @@ export const useWorldStore = create<WorldStore>()(
           const object = s.world.objects.find((o) => o.id === objectId);
           if (!object) return;
           (object.state.container ??= []).push({ id: newId(), kind: 'book', ...book, addedAt: new Date().toISOString() });
+        }),
+      setBookProgress: (objectId, bookId, progress) =>
+        set((s) => {
+          const book = s.world.objects.find((o) => o.id === objectId)?.state.container?.find((b) => b.id === bookId);
+          if (book) book.progress = progress;
         }),
       removeBook: (objectId, bookId) =>
         set((s) => {

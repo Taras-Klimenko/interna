@@ -1,10 +1,10 @@
 /**
- * Файлы пользователя (музыка, фото) в IndexedDB: localStorage для них слишком мал.
+ * Файлы пользователя (музыка, фото, книги и их обложки) в IndexedDB: localStorage для них слишком мал.
  * Ключ — id трека или фото из состояния мира.
  */
 const DB_NAME = 'interna';
-const DB_VERSION = 2;
-const STORES = ['tracks', 'photos'] as const;
+const DB_VERSION = 3;
+const STORES = ['tracks', 'photos', 'books', 'covers'] as const;
 type StoreName = (typeof STORES)[number];
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -13,7 +13,7 @@ function openDb(): Promise<IDBDatabase> {
   dbPromise ??= new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
-      // Версия 1 знала только про треки: недостающие хранилища досоздаём, существующие не трогаем.
+      // Старые версии знали не про все хранилища: недостающие досоздаём, существующие не трогаем.
       for (const name of STORES) {
         if (!request.result.objectStoreNames.contains(name)) request.result.createObjectStore(name);
       }
@@ -54,6 +54,10 @@ function fileStore(name: StoreName) {
 
 export const trackFiles = fileStore('tracks');
 export const photoFiles = fileStore('photos');
+/** Файл книги (fb2, epub) — под id книги. */
+export const bookFiles = fileStore('books');
+/** Уменьшенная обложка книги в JPEG — тоже под id книги. */
+export const coverFiles = fileStore('covers');
 
 /** Просим браузер не вычищать хранилище при нехватке места. Если откажет — ничего страшного. */
 export function requestPersistentStorage() {

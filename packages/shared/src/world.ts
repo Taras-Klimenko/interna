@@ -56,6 +56,32 @@ export interface Book {
   note: string;
   /** ISO-время, когда книгу поставили на полку. */
   addedAt: string;
+  /** Книга загружена из файла: её можно читать. Сам файл лежит в хранилище браузера под id книги. */
+  file?: BookFile;
+  /** Цвет корешка (с обложки). Без него цвет выбирается по id. */
+  color?: string;
+  /** Где остановились в читалке. */
+  progress?: ReadingProgress;
+}
+
+export interface BookFile {
+  format: 'fb2' | 'epub';
+  fileName: string;
+  /** Размер файла в байтах. */
+  size: number;
+  /** Есть ли обложка (лежит в хранилище браузера под id книги). */
+  hasCover: boolean;
+}
+
+export interface ReadingProgress {
+  /** Номер главы, с нуля. */
+  chapter: number;
+  /** Насколько прокручена глава: 0 — начало, 1 — конец. */
+  offset: number;
+  /** Сколько прочитано от всей книги, 0–1. */
+  percent: number;
+  /** ISO-время, когда читали в последний раз. */
+  updatedAt: string;
 }
 
 /** То, что может лежать в предмете-контейнере. Позже добавятся заметки. */

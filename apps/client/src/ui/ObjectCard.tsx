@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
-import type { ObjectDef, PlacedObject } from '@interna/shared';
+import type { Book, ObjectDef, PlacedObject } from '@interna/shared';
 import { CATALOG } from '../catalog/catalog';
 import { ACTIONS, bookCapacity, requestAction } from '../interaction/actions';
 import { useCharacterStore } from '../store/characterStore';
 import { useInteractionStore } from '../store/interactionStore';
 import { useWorldStore } from '../store/worldStore';
 import { Notice } from './Notice';
+import { useReaderStore } from '../store/readerStore';
 import { pause, step, unlockAudio, useMusicStore } from '../audio/player';
 
 /** Карточка выбранного предмета: что с ним сейчас и что с ним можно сделать. */
@@ -63,6 +64,11 @@ export function ObjectCard() {
           {has(def, 'needs') && (
             <button type="button" disabled={!!busy} onClick={() => requestAction(object.id, 'water')}>
               Полить
+            </button>
+          )}
+          {bookCapacity(def) !== null && currentBook(object) && (
+            <button type="button" onClick={() => useReaderStore.getState().openBook(object.id, currentBook(object)!.id)}>
+              Читать дальше
             </button>
           )}
           {bookCapacity(def) !== null && (
@@ -138,6 +144,22 @@ function statusOf(object: PlacedObject, def: ObjectDef): string {
   if (capacity !== null) {
     const count = object.state.container?.length ?? 0;
     parts.push(count === 0 ? 'пусто' : `книг: ${count} из ${capacity}`);
+    const reading = currentBook(object);
+    if (reading) parts.push(`читаете «${short(reading.title)}» — ${Math.round((reading.progress?.percent ?? 0) * 100)}%`);
   }
   return parts.join(', ');
+}
+
+/** Книга, которую читали последней и ещё не дочитали. */
+function currentBook(object: PlacedObject): Book | null {
+  let best: Book | null = null;
+  for (const book of object.state.container ?? []) {
+    if (!book.file || !book.progress || book.progress.percent >= 0.99) continue;
+    if (!best || book.progress.updatedAt > best.progress!.updatedAt) best = book;
+  }
+  return best;
+}
+
+function short(text: string) {
+  return text.length > 30 ? `${text.slice(0, 29)}…` : text;
 }

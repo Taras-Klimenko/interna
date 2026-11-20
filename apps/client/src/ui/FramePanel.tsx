@@ -3,61 +3,13 @@ import type { Photo } from '@interna/shared';
 import { CATALOG } from '../catalog/catalog';
 import { forgetPhotoTexture } from '../scene/photoTextures';
 import { photoFiles, requestPersistentStorage } from '../storage/files';
+import { downscaleImage } from '../storage/images';
+import { useBlobUrl } from './useBlobUrl';
 import { useInteractionStore } from '../store/interactionStore';
 import { newId, useWorldStore } from '../store/worldStore';
 
-/** Длинная сторона фото после сжатия: для рамки на полметра больше не нужно, а фото с телефона весят мегабайты. */
+/** Длинная сторона фото после сжатия: для рамки на полметра больше не нужно. */
 const MAX_SIDE = 1280;
-
-/** Уменьшает фото и пережимает в JPEG. Поворот из EXIF браузер применяет сам. */
-async function preparePhoto(file: File): Promise<{ blob: Blob; width: number; height: number }> {
-  const url = URL.createObjectURL(file);
-  try {
-    const image = new Image();
-    image.src = url;
-    await image.decode();
-    const scale = Math.min(1, MAX_SIDE / Math.max(image.naturalWidth, image.naturalHeight));
-    const width = Math.max(1, Math.round(image.naturalWidth * scale));
-    const height = Math.max(1, Math.round(image.naturalHeight * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('canvas');
-    // Прозрачный PNG иначе станет чёрным.
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(image, 0, 0, width, height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.86));
-    if (!blob) throw new Error('encode');
-    return { blob, width, height };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-/** Ссылка на фото из хранилища браузера для <img>. */
-function usePhotoUrl(id: string | undefined) {
-  const [url, setUrl] = useState<{ id: string; url: string } | null>(null);
-  useEffect(() => {
-    if (!id) return;
-    let objectUrl: string | null = null;
-    let cancelled = false;
-    void photoFiles
-      .load(id)
-      .catch(() => undefined)
-      .then((blob) => {
-        if (cancelled || !blob) return;
-        objectUrl = URL.createObjectURL(blob);
-        setUrl({ id, url: objectUrl });
-      });
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [id]);
-  return url && url.id === id ? url.url : null;
-}
 
 /** Открытая рамка: какое фото висит, подпись к нему, замена и снятие. */
 export function FramePanel() {
@@ -65,7 +17,7 @@ export function FramePanel() {
   const closePanel = useInteractionStore((s) => s.closePanel);
   const frame = useWorldStore((s) => s.world.objects.find((o) => o.id === frameId) ?? null);
   const photo = frame?.state.display?.photo;
-  const previewUrl = usePhotoUrl(photo?.id);
+  const previewUrl = useBlobUrl(photoFiles.load, photo?.id);
   const [busy, setBusy] = useState(false);
   const [caption, setCaption] = useState(photo?.caption ?? '');
   const fileInput = useRef<HTMLInputElement>(null);
@@ -105,7 +57,7 @@ export function FramePanel() {
     setBusy(true);
     requestPersistentStorage();
     try {
-      const prepared = await preparePhoto(file);
+      const prepared = await downscaleImage(file, MAX_SIDE);
       const next: Photo = {
         id: newId(),
         kind: 'photo',

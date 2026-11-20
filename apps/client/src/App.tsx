@@ -8,7 +8,9 @@ import { ObjectCard } from './ui/ObjectCard';
 import { ShelfPanel } from './ui/ShelfPanel';
 import { MusicPanel } from './ui/MusicPanel';
 import { FramePanel } from './ui/FramePanel';
-import { photoFiles } from './storage/files';
+import { Reader } from './ui/Reader';
+import { bookFiles, coverFiles, photoFiles } from './storage/files';
+import { useReaderStore } from './store/readerStore';
 import { useWorldStore } from './store/worldStore';
 import { isDarkHour } from './scene/timeOfDay';
 import { useRoomHour } from './ui/useRoomHour';
@@ -19,6 +21,7 @@ import { useInteractionStore } from './store/interactionStore';
 export function App() {
   const editing = useEditorStore((s) => s.active);
   const dark = isDarkHour(useRoomHour());
+  const reading = useReaderStore((s) => s.open !== null);
 
   // В режиме расстановки карточки предметов и шкаф закрыты: предмет могут передвинуть или убрать.
   useEffect(() => {
@@ -32,11 +35,16 @@ export function App() {
   useEffect(() => {
     const used = useWorldStore.getState().world.objects.flatMap((o) => o.state.display?.photo?.id ?? []);
     void photoFiles.removeUnused(new Set(used)).catch(() => undefined);
+    // То же с книгами из файлов: шкаф убрали или комнату сбросили.
+    const books = new Set(useWorldStore.getState().world.objects.flatMap((o) => o.state.container ?? []).filter((b) => b.file).map((b) => b.id));
+    void bookFiles.removeUnused(books).catch(() => undefined);
+    void coverFiles.removeUnused(books).catch(() => undefined);
   }, []);
 
   return (
     <div className="app" data-dark={dark}>
-      <Canvas shadows dpr={[1, 2]} camera={{ fov: 30, near: 0.1, far: 100, position: [7.5, 7.5, 7.5] }}>
+      {/* Пока открыта книга, комнату не видно: не рисуем её, чтобы не тратить батарею. */}
+      <Canvas frameloop={reading ? 'never' : 'always'} shadows dpr={[1, 2]} camera={{ fov: 30, near: 0.1, far: 100, position: [7.5, 7.5, 7.5] }}>
         <Scene />
       </Canvas>
       <Hud />
@@ -51,6 +59,7 @@ export function App() {
           <FramePanel />
         </>
       )}
+      <Reader />
     </div>
   );
 }
