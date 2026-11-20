@@ -4,6 +4,8 @@ import { useEditorStore } from '../store/editorStore';
 import { EditorController } from '../editor/EditorController';
 import { Character } from '../character/Character';
 import { CameraRig } from './CameraRig';
+import { FirstPersonRig } from './FirstPersonRig';
+import { useUiStore } from '../store/uiStore';
 import { DayLight } from './DayLight';
 import { Room } from './Room';
 import { FloorPicker } from './FloorPicker';
@@ -13,14 +15,16 @@ export function Scene() {
   const world = useWorldStore((s) => s.world);
   const editing = useEditorStore((s) => s.active);
   const draft = useEditorStore((s) => s.draft);
+  const firstPerson = useUiStore((s) => s.firstPerson) && !editing;
 
   return (
     <>
       <DayLight />
 
-      <CameraRig />
+      {/* Вид от первого лица сам ловит клики по полу: вы идёте туда, а не персонаж. */}
+      {firstPerson ? <FirstPersonRig /> : <CameraRig />}
       <Room />
-      {editing ? <EditorController /> : <FloorPicker />}
+      {editing ? <EditorController /> : firstPerson ? null : <FloorPicker />}
       {world.objects.map((object) =>
         // Переносимый предмет прячем: вместо него рисуется полупрозрачный «призрак».
         object.id === draft?.sourceId ? null : <PlacedObjectMesh key={object.id} object={object} roomSize={world.room.size} />,

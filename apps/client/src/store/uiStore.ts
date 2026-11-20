@@ -23,6 +23,12 @@ interface UiStore {
   timeMode: TimeMode;
   /** Следующий режим по кругу: авто → утро → день → вечер → ночь → авто. */
   cycleTimeMode: () => void;
+  /** Вид от первого лица: вы сами ходите по комнате. Иначе — диорама сверху. */
+  firstPerson: boolean;
+  setFirstPerson: (on: boolean) => void;
+  /** Куда вы идёте после тапа по полу: для отметки на полу. */
+  walkGoal: { x: number; z: number } | null;
+  setWalkGoal: (goal: { x: number; z: number } | null) => void;
 }
 
 export const useUiStore = create<UiStore>()((set) => ({
@@ -31,6 +37,10 @@ export const useUiStore = create<UiStore>()((set) => ({
   rotateRequest: { dir: 1, seq: 0 },
   requestRotate: (dir) => set((s) => ({ rotateRequest: { dir, seq: s.rotateRequest.seq + 1 } })),
   timeMode: loadTimeMode(),
+  firstPerson: false,
+  setFirstPerson: (firstPerson) => set({ firstPerson, walkGoal: null }),
+  walkGoal: null,
+  setWalkGoal: (walkGoal) => set({ walkGoal }),
   cycleTimeMode: () =>
     set((s) => {
       const timeMode = TIME_MODES[(TIME_MODES.indexOf(s.timeMode) + 1) % TIME_MODES.length]!;

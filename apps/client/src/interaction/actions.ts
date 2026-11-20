@@ -6,6 +6,7 @@ import { useWorldStore } from '../store/worldStore';
 import { useCharacterStore } from '../store/characterStore';
 import { useInteractionStore } from '../store/interactionStore';
 import { resume } from '../audio/player';
+import { playerCanReach } from '../scene/player';
 
 /** Что персонаж умеет делать с предметами. Позже этот же список станет «инструментами» для ИИ. */
 export type ActionId = 'lightOn' | 'lightOff' | 'water' | 'musicOn';
@@ -119,13 +120,20 @@ function pathLength(start: GridPos, cells: GridPos[]) {
 
 /**
  * Попросить персонажа сделать что-то с предметом: он подходит, поворачивается к предмету и играет анимацию.
- * Если подойти нельзя — делаем сразу, чтобы кнопка не «молчала».
+ * Если подойти нельзя — делаем сразу, чтобы кнопка не «молчала». А если вы сами (от первого лица)
+ * стоите рядом с предметом — делаете сами.
  */
 export function requestAction(objectId: string, action: ActionId) {
   const { world } = useWorldStore.getState();
   const object = world.objects.find((o) => o.id === objectId);
   const def = object && CATALOG[object.defId];
   if (!object || !def) return;
+
+  // От первого лица вы стоите рядом с предметом — делаете сами, сразу.
+  if (playerCanReach(object, world.room.size)) {
+    ACTIONS[action].apply(objectId);
+    return;
+  }
 
   const blocked = buildOccupancy(world.room.size, world.objects);
   const plan = planApproach(object, world.room.size, blocked, world.character.pos);

@@ -13,20 +13,27 @@ export function Hud() {
   const timeMode = useUiStore((s) => s.timeMode);
   const cycleTimeMode = useUiStore((s) => s.cycleTimeMode);
   const phase = phaseOf(useRoomHour());
+  const firstPerson = useUiStore((s) => s.firstPerson) && !editing;
+  const setFirstPerson = useUiStore((s) => s.setFirstPerson);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const key = e.code;
-      if (key === 'KeyQ') requestRotate(-1);
-      else if (key === 'KeyE') requestRotate(1);
-      else if (key === 'KeyG') toggleGrid();
-      else if (key === 'KeyB') setEditing(!useEditorStore.getState().active);
+      const inside = useUiStore.getState().firstPerson;
+      // Изнутри Q/E и G ни к чему: камеры-диорамы и сетки там нет.
+      if (key === 'KeyQ' && !inside) requestRotate(-1);
+      else if (key === 'KeyE' && !inside) requestRotate(1);
+      else if (key === 'KeyG' && !inside) toggleGrid();
+      else if (key === 'KeyB') {
+        setFirstPerson(false);
+        setEditing(!useEditorStore.getState().active);
+      } else if (key === 'KeyF' && !useEditorStore.getState().active) setFirstPerson(!inside);
       else if (key === 'KeyT') cycleTimeMode();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [requestRotate, toggleGrid, setEditing, cycleTimeMode]);
+  }, [requestRotate, toggleGrid, setEditing, cycleTimeMode, setFirstPerson]);
 
   return (
     <>
@@ -36,16 +43,32 @@ export function Hud() {
       </header>
 
       <div className="hud-toolbar" role="toolbar" aria-label="Камера">
-        <button type="button" onClick={() => requestRotate(-1)} title="Повернуть влево (Q)">
-          ⟲
-        </button>
-        <button type="button" onClick={() => requestRotate(1)} title="Повернуть вправо (E)">
-          ⟳
-        </button>
-        <span className="hud-sep" />
-        <button type="button" onClick={toggleGrid} aria-pressed={showGrid || editing} disabled={editing} title="Сетка (G)">
-          Сетка
-        </button>
+        {!firstPerson && (
+          <>
+            <button type="button" onClick={() => requestRotate(-1)} title="Повернуть влево (Q)">
+              ⟲
+            </button>
+            <button type="button" onClick={() => requestRotate(1)} title="Повернуть вправо (E)">
+              ⟳
+            </button>
+            <span className="hud-sep" />
+            <button type="button" onClick={toggleGrid} aria-pressed={showGrid || editing} disabled={editing} title="Сетка (G)">
+              Сетка
+            </button>
+          </>
+        )}
+        {!editing && (
+          <button
+            type="button"
+            className="hud-inside"
+            onClick={() => setFirstPerson(!firstPerson)}
+            aria-pressed={firstPerson}
+            title={firstPerson ? 'Вернуться к виду сверху (F)' : 'Войти в комнату (F)'}
+          >
+            <span aria-hidden="true">{firstPerson ? '⌂' : '🚶'}</span>
+            <span className="hud-time-label">{firstPerson ? 'Выйти' : 'Войти'}</span>
+          </button>
+        )}
         <button
           type="button"
           className="hud-time"
@@ -57,7 +80,16 @@ export function Hud() {
           <span className="hud-time-label">{timeMode === 'auto' ? 'Сейчас' : PHASE_LABELS[phase]}</span>
         </button>
         <span className="hud-sep" />
-        <button type="button" className="hud-mode" onClick={() => setEditing(!editing)} aria-pressed={editing} title="Режим расстановки (B)">
+        <button
+          type="button"
+          className="hud-mode"
+          onClick={() => {
+            setFirstPerson(false);
+            setEditing(!editing);
+          }}
+          aria-pressed={editing}
+          title="Режим расстановки (B)"
+        >
           {editing ? 'Готово' : 'Обставить'}
         </button>
       </div>
@@ -69,10 +101,17 @@ export function Hud() {
           </p>
           <p className="hud-hint hud-hint-touch">Выберите предмет и коснитесь пола · потяните предмет, чтобы передвинуть</p>
         </>
+      ) : firstPerson ? (
+        <>
+          <p className="hud-hint hud-hint-desktop">
+            WASD или стрелки — идти · Shift — быстрее · тяните мышью — смотреть · клик по полу — дойти туда · клик по предмету — действия, рядом с ним вы делаете всё сами · F — выйти
+          </p>
+          <p className="hud-hint hud-hint-touch">Тап по полу — идти · потяните — осмотреться · тап по предмету — действия</p>
+        </>
       ) : (
         <>
           <p className="hud-hint hud-hint-desktop">
-            Клик по полу — идти · по лампе, колонке, растению, шкафу или рамке — действия · перетаскивание — вращать · колесо — приблизить · Q / E — к соседнему углу · T — время суток · B — обставить
+            Клик по полу — идти · по лампе, колонке, растению, шкафу или рамке — действия · перетаскивание — вращать · колесо — приблизить · Q / E — к соседнему углу · T — время суток · F — войти в комнату · B — обставить
           </p>
           <p className="hud-hint hud-hint-touch">Тап по полу — идти · по предмету — действия · один палец — вращать · два — приблизить</p>
         </>

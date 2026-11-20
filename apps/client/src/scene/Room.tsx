@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Grid } from '@react-three/drei';
-import { MathUtils, type Group, type Texture, type Vector3 } from 'three';
+import { MathUtils, type Group, type MeshStandardMaterial, type Texture, type Vector3 } from 'three';
 import { CELL_SIZE, WALL_HEIGHT } from '@interna/shared';
 import { useWorldStore } from '../store/worldStore';
 import { useUiStore } from '../store/uiStore';
 import { useEditorStore } from '../store/editorStore';
 import { roomDimensions } from './grid';
+import { player } from './player';
+import { liveLighting } from './DayLight';
 import { floorStyle, surfaceTexture, wallStyle, type SurfaceStyle } from './roomStyles';
 
 const WALL_THICKNESS = 0.12;
@@ -41,7 +43,8 @@ export function Room() {
   // В режиме расстановки сетка видна всегда.
   const gridToggled = useUiStore((s) => s.showGrid);
   const editing = useEditorStore((s) => s.active);
-  const showGrid = gridToggled || editing;
+  const firstPerson = useUiStore((s) => s.firstPerson);
+  const showGrid = (gridToggled || editing) && !firstPerson;
   const { width, depth } = roomDimensions(size);
   const outerW = width + WALL_THICKNESS * 2;
   const outerD = depth + WALL_THICKNESS * 2;
@@ -81,6 +84,9 @@ export function Room() {
         />
       )}
 
+      {/* Потолок нужен только изнутри: в диораме комната открыта сверху. */}
+      {firstPerson && <Ceiling width={outerW} depth={outerD} />}
+
       {/* Стены. inward — нормаль, смотрящая внутрь комнаты. */}
       <Wall position={[0, -depth / 2 - WALL_THICKNESS / 2]} length={outerW} alongX inward={[0, 1]} map={wallMapX} />
       <Wall position={[0, depth / 2 + WALL_THICKNESS / 2]} length={outerW} alongX inward={[0, -1]} map={wallMapX} />
@@ -91,10 +97,29 @@ export function Room() {
 }
 
 /**
+ * Потолок смотрит вниз, и солнце сверху его не освещает: без подсветки он выходит тёмно-коричневым.
+ * Днём подсвечиваем его, как будто свет отражается от пола, ночью подсветка почти гаснет и остаются лампы.
+ */
+function Ceiling({ width, depth }: { width: number; depth: number }) {
+  const material = useRef<MeshStandardMaterial>(null);
+  useFrame(() => {
+    if (material.current) material.current.emissiveIntensity = 0.06 + 0.4 * liveLighting.daylight;
+  });
+  return (
+    <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, WALL_HEIGHT, 0]} raycast={() => null}>
+      <planeGeometry args={[width, depth]} />
+      <meshStandardMaterial ref={material} color="#f5eee4" emissive="#f3e6d4" roughness={0.95} />
+    </mesh>
+  );
+}
+
+/**
  * Спрятана ли стена с такой внутренней нормалью: камера с её внешней стороны.
  * Тем же правилом прячутся и висящие на стене предметы.
  */
 export function isWallHidden(cameraPosition: Vector3, inward: { x: number; z: number }) {
+  // Изнутри комнаты стены стоят всегда.
+  if (player.active) return false;
   const len = Math.hypot(cameraPosition.x, cameraPosition.z) || 1;
   const facing = (cameraPosition.x / len) * inward.x + (cameraPosition.z / len) * inward.z;
   return facing < -0.25;
