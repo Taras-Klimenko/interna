@@ -10,6 +10,7 @@ import { MusicPanel } from './ui/MusicPanel';
 import { FramePanel } from './ui/FramePanel';
 import { Reader } from './ui/Reader';
 import { LoginScreen } from './ui/LoginScreen';
+import { ChatPanel } from './ui/ChatPanel';
 import { useAccountStore } from './store/accountStore';
 import { startWorldSync } from './api/worldSync';
 import { bookFiles, coverFiles, photoFiles } from './storage/files';
@@ -71,6 +72,7 @@ export function App() {
           <ShelfPanel />
           <MusicPanel />
           <FramePanel />
+          <ChatPanel />
         </>
       )}
       <Reader />

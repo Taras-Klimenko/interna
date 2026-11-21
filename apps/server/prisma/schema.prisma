@@ -20,6 +20,8 @@ model User {
   invite    Invite?
   sessions  Session[]
   world     World?
+  chat      ChatMessage[]
+  llmCalls  LlmCall[]
 }
 
 /// Инвайт-код. Он же ключ для входа с другого устройства: тот же код — тот же пользователь.
@@ -54,4 +56,39 @@ model World {
   data      Json
   version   Int      @default(1)
   updatedAt DateTime @updatedAt
+}
+
+/// Реплика в разговоре с персонажем. Сохраняется парой (вопрос и ответ), когда ответ дописан до конца.
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// user — хозяин комнаты, assistant — персонаж.
+  role      String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// Каждый вызов языковой модели: сколько токенов ушло и сколько это заняло. По этой таблице считаем стоимость.
+model LlmCall {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Зачем вызывали: пока только chat.
+  kind         String
+  provider     String
+  model        String
+  /// Входные токены без тех, что пришли из кэша.
+  inputTokens  Int      @default(0)
+  cachedTokens Int      @default(0)
+  /// Выходные токены вместе с «размышлениями» модели.
+  outputTokens Int      @default(0)
+  durationMs   Int      @default(0)
+  /// Текст ошибки, если вызов не удался.
+  error        String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

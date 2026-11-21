@@ -25,6 +25,17 @@ const initialObjects: PlacedObject[] = [
   { id: 'o13', defId: 'window', pos: { x: 7, z: 0 }, rotation: 0, state: {} },
 ];
 
+/** Имя персонажа по умолчанию — подходит и девушке, и парню; его можно поменять в панели персонажа. */
+export const DEFAULT_CHARACTER_NAME = 'Саша';
+/** Так персонажа звали в первых версиях прототипа. */
+const OLD_TEST_NAME = 'Тест';
+
+/** Мир из старой версии (из браузера или с сервера) — к нынешнему виду. */
+function upgradeWorld(world: World): World {
+  if (world.character.name === OLD_TEST_NAME) world.character.name = DEFAULT_CHARACTER_NAME;
+  return world;
+}
+
 /** Стартовый мир, пока нет онбординга. */
 const initialWorld: World = {
   id: 'local',
@@ -32,7 +43,7 @@ const initialWorld: World = {
   objects: initialObjects,
   character: {
     id: 'c1',
-    name: 'Тест',
+    name: DEFAULT_CHARACTER_NAME,
     appearance: { body: 'female', hair: 'Hair_Long', beard: false, hairColor: '#ffffff' },
     pos: { x: 5, z: 3 },
   },
@@ -49,6 +60,7 @@ interface WorldStore {
   /** Растёт, когда персонажа нужно мгновенно переставить (например, после сброса комнаты). */
   teleportSeq: number;
   setAppearance: (patch: Partial<CharacterAppearance>) => void;
+  setCharacterName: (name: string) => void;
   setCharacterPos: (pos: GridPos) => void;
   /** Ставит новый предмет и возвращает его id. Проверка «помещается ли» — на стороне вызывающего. */
   addObject: (defId: string, pos: GridPos, rotation: Rotation) => string;
@@ -75,7 +87,8 @@ interface WorldStore {
 
 /** Ключ в localStorage. Номер версии меняем, когда формат World ломается несовместимо. */
 const STORAGE_KEY = 'interna.world';
-const STORAGE_VERSION = 1;
+/** 2 — персонажа «Тест» зовут по-новому. */
+const STORAGE_VERSION = 2;
 
 export const useWorldStore = create<WorldStore>()(
   persist(
@@ -85,6 +98,10 @@ export const useWorldStore = create<WorldStore>()(
       setAppearance: (patch) =>
         set((s) => {
           Object.assign(s.world.character.appearance, patch);
+        }),
+      setCharacterName: (name) =>
+        set((s) => {
+          s.world.character.name = name.slice(0, 40);
         }),
       setCharacterPos: (pos) =>
         set((s) => {
@@ -123,7 +140,7 @@ export const useWorldStore = create<WorldStore>()(
         }),
       replaceWorld: (world) =>
         set((s) => {
-          s.world = world;
+          s.world = upgradeWorld(world);
           s.teleportSeq += 1;
         }),
       setLight: (id, on) =>
@@ -187,6 +204,11 @@ export const useWorldStore = create<WorldStore>()(
       storage: createJSONStorage(() => localStorage),
       // Сохраняем только сам мир, служебные счётчики — нет.
       partialize: (s) => ({ world: s.world }),
+      migrate: (persisted) => {
+        const state = persisted as { world?: World } | undefined;
+        if (state?.world) upgradeWorld(state.world);
+        return state as WorldStore;
+      },
     },
   ),
 );

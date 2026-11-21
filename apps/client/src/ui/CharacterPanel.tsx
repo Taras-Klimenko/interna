@@ -1,21 +1,23 @@
 import { useState } from 'react';
-import { useWorldStore } from '../store/worldStore';
+import { DEFAULT_CHARACTER_NAME, useWorldStore } from '../store/worldStore';
 import { useCharacterStore } from '../store/characterStore';
 import { ANIMATION_GROUPS, HAIR_COLORS, HAIR_OPTIONS } from '../character/assets';
 
 /** На узких экранах (телефоны) панель стартует свёрнутой, чтобы не закрывать комнату. */
 const startCollapsed = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
 
-/** Тестовая панель персонажа: внешность и ручной запуск любой анимации. */
+/** Панель персонажа: имя, внешность и (для проверки) ручной запуск любой анимации. */
 export function CharacterPanel() {
   const appearance = useWorldStore((s) => s.world.character.appearance);
   const setAppearance = useWorldStore((s) => s.setAppearance);
+  const name = useWorldStore((s) => s.world.character.name);
+  const setCharacterName = useWorldStore((s) => s.setCharacterName);
   const currentClip = useCharacterStore((s) => s.currentClip);
   const playClip = useCharacterStore((s) => s.playClip);
   const [collapsed, setCollapsed] = useState(startCollapsed);
 
   return (
-    <aside className="panel" data-collapsed={collapsed} aria-label="Персонаж: тест">
+    <aside className="panel" data-collapsed={collapsed} aria-label="Персонаж">
       <button
         type="button"
         className="panel-toggle"
@@ -23,13 +25,26 @@ export function CharacterPanel() {
         aria-controls="character-panel-body"
         onClick={() => setCollapsed((c) => !c)}
       >
-        <span className="panel-title">Персонаж · тест</span>
+        <span className="panel-title">{name.trim() || DEFAULT_CHARACTER_NAME}</span>
         <span className="panel-chevron" aria-hidden="true">
           ▾
         </span>
       </button>
 
       <div id="character-panel-body" className="panel-body" hidden={collapsed}>
+        <section className="panel-section">
+          <h3>Имя</h3>
+          <input
+            className="panel-input"
+            value={name}
+            onChange={(e) => setCharacterName(e.target.value)}
+            onBlur={() => !name.trim() && setCharacterName(DEFAULT_CHARACTER_NAME)}
+            maxLength={40}
+            aria-label="Имя персонажа"
+            spellCheck={false}
+          />
+        </section>
+
         <section className="panel-section">
           <h3>Тело</h3>
           <div className="chip-row">

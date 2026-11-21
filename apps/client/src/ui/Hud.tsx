@@ -4,6 +4,8 @@ import { PHASE_ICONS, PHASE_LABELS, phaseOf } from '../scene/timeOfDay';
 import { useRoomHour } from './useRoomHour';
 import { useEditorStore } from '../store/editorStore';
 import { AccountBadge } from './AccountBadge';
+import { useChatStore } from '../store/chatStore';
+import { useAccountStore } from '../store/accountStore';
 
 export function Hud() {
   const showGrid = useUiStore((s) => s.showGrid);
@@ -16,6 +18,9 @@ export function Hud() {
   const phase = phaseOf(useRoomHour());
   const firstPerson = useUiStore((s) => s.firstPerson) && !editing;
   const setFirstPerson = useUiStore((s) => s.setFirstPerson);
+  const chatOpen = useChatStore((s) => s.open);
+  // Без сервера (сборка без VITE_API_URL) разговаривать не через кого.
+  const chatAvailable = useAccountStore((s) => s.status !== 'disabled');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -31,6 +36,11 @@ export function Hud() {
         setEditing(!useEditorStore.getState().active);
       } else if (key === 'KeyF' && !useEditorStore.getState().active) setFirstPerson(!inside);
       else if (key === 'KeyT') cycleTimeMode();
+      else if (key === 'KeyC' && !useEditorStore.getState().active && useAccountStore.getState().status !== 'disabled') {
+        const chat = useChatStore.getState();
+        if (chat.open) chat.closeChat();
+        else chat.openChat();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -69,6 +79,18 @@ export function Hud() {
           >
             <span aria-hidden="true">{firstPerson ? '⌂' : '🚶'}</span>
             <span className="hud-time-label">{firstPerson ? 'Выйти' : 'Войти'}</span>
+          </button>
+        )}
+        {!editing && chatAvailable && (
+          <button
+            type="button"
+            className="hud-inside"
+            onClick={() => (chatOpen ? useChatStore.getState().closeChat() : useChatStore.getState().openChat())}
+            aria-pressed={chatOpen}
+            title="Поговорить (C)"
+          >
+            <span aria-hidden="true">💬</span>
+            <span className="hud-time-label">Поговорить</span>
           </button>
         )}
         <button
@@ -113,7 +135,7 @@ export function Hud() {
       ) : (
         <>
           <p className="hud-hint hud-hint-desktop">
-            Клик по полу — идти · по лампе, колонке, растению, шкафу или рамке — действия · перетаскивание — вращать · колесо — приблизить · Q / E — к соседнему углу · T — время суток · F — войти в комнату · B — обставить
+            Клик по полу — идти · по лампе, колонке, растению, шкафу или рамке — действия · по персонажу или C — поговорить · перетаскивание — вращать · колесо — приблизить · Q / E — к соседнему углу · T — время суток · F — войти в комнату · B — обставить
           </p>
           <p className="hud-hint hud-hint-touch">Тап по полу — идти · по предмету — действия · один палец — вращать · два — приблизить</p>
         </>

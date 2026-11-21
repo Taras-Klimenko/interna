@@ -3,6 +3,7 @@ import { useWorldStore } from '../store/worldStore';
 import { useEditorStore } from '../store/editorStore';
 import { EditorController } from '../editor/EditorController';
 import { Character } from '../character/Character';
+import { SpeechBubble } from './SpeechBubble';
 import { CameraRig } from './CameraRig';
 import { FirstPersonRig } from './FirstPersonRig';
 import { useUiStore } from '../store/uiStore';
@@ -46,6 +47,7 @@ export function Scene() {
       )}
       <Suspense fallback={null}>
         <Character />
+        <SpeechBubble />
       </Suspense>
     </>
   );

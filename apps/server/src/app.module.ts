@@ -6,9 +6,11 @@ import { AuthController } from './auth/auth.controller.js';
 import { WorldService } from './world/world.service.js';
 import { WorldController } from './world/world.controller.js';
 import { HealthController } from './health.controller.js';
+import { ChatService } from './chat/chat.service.js';
+import { ChatController } from './chat/chat.controller.js';
 
 @Module({
-  controllers: [AuthController, WorldController, HealthController],
-  providers: [PrismaService, AuthService, AuthGuard, WorldService],
+  controllers: [AuthController, WorldController, ChatController, HealthController],
+  providers: [PrismaService, AuthService, AuthGuard, WorldService, ChatService],
 })
 export class AppModule {}

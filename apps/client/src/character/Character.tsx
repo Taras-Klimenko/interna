@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Vector3, type Group } from 'three';
 import { useWorldStore } from '../store/worldStore';
 import { useCharacterStore } from '../store/characterStore';
@@ -10,6 +10,10 @@ import { buildOccupancy, findPath } from './pathfinding';
 import { CharacterModel } from './CharacterModel';
 import { IDLE_CLIP, WALK_CLIP } from './assets';
 import { ACTIONS, completeTask } from '../interaction/actions';
+import { TALK_CLIP, useChatStore } from '../store/chatStore';
+
+/** Сдвиг указателя (px), после которого нажатие считается перетаскиванием камеры, а не кликом. */
+const CLICK_TOLERANCE_PX = 5;
 
 /** Скорость ходьбы в м/с: подобрана под шаг клипа Walk_Loop, чтобы ноги не «скользили». */
 const WALK_SPEED = 1.15;
@@ -108,7 +112,7 @@ export function Character() {
     })];
   };
 
-  useFrame(({ clock }, delta) => {
+  useFrame(({ clock, camera }, delta) => {
     const group = ref.current;
     if (!group) return;
     const next = waypoints.current[0];
@@ -151,10 +155,14 @@ export function Character() {
     }
 
     // Без дела и рядом с вами — поворачивается к вам, а подойдёте ближе — кивает.
-    const idle = !waypoints.current[0] && !useCharacterStore.getState().task && !useCharacterStore.getState().manualClip;
+    const { task: currentTask, manualClip: currentManual } = useCharacterStore.getState();
+    const talking = currentManual === TALK_CLIP;
+    const idle = !waypoints.current[0] && !currentTask && !currentManual;
+    // Отвечает вам, глядя на комнату сверху, — поворачивается к камере.
+    if (talking && !player.active) targetYaw.current = Math.atan2(camera.position.x - group.position.x, camera.position.z - group.position.z);
     if (player.active) {
       const toPlayer = Math.hypot(player.x - group.position.x, player.z - group.position.z);
-      if (idle && toPlayer < NOTICE_DISTANCE) targetYaw.current = Math.atan2(player.x - group.position.x, player.z - group.position.z);
+      if ((idle || talking) && toPlayer < NOTICE_DISTANCE) targetYaw.current = Math.atan2(player.x - group.position.x, player.z - group.position.z);
       if (toPlayer > NOTICE_DISTANCE) greeted.current = false;
       const now = clock.elapsedTime;
       if (idle && !greeted.current && toPlayer < GREET_DISTANCE && now - lastGreet.current > GREET_COOLDOWN) {
@@ -191,8 +199,20 @@ export function Character() {
     [playClip],
   );
 
+  // Клик по персонажу — поговорить с ним.
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
+    if (editing || e.delta > CLICK_TOLERANCE_PX) return;
+    e.stopPropagation();
+    useChatStore.getState().openChat();
+  };
+
   return (
-    <group ref={ref}>
+    <group
+      ref={ref}
+      onClick={onClick}
+      onPointerOver={() => !editing && (document.body.style.cursor = 'pointer')}
+      onPointerOut={() => (document.body.style.cursor = '')}
+    >
       {/* Новое тело — новый скелет, поэтому модель пересоздаётся вместе с микшером анимаций. */}
       <CharacterModel key={appearance.body} appearance={appearance} clip={clip} onClipFinished={onClipFinished} />
     </group>
