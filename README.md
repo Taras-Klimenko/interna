@@ -13,6 +13,34 @@ pnpm assets:characters   # пересобрать модели персонаж�
 pnpm assets:inspect <file.glb>   # показать анимации, кости и материалы модели
 ```
 
+## Сервер (локально)
+
+Бэкенд — NestJS 12 + Prisma 7 + PostgreSQL 17 в Docker ([apps/server](apps/server)). Он хранит мир пользователя одним JSON-документом и пускает по инвайт-кодам. Медиафайлы (музыка, фото, книги) на сервер не уходят: они остаются в браузере.
+
+Нужен запущенный Docker Desktop. Первый раз:
+
+```bash
+pnpm db:up                  # Postgres в контейнере interna-db, порт 5433 (только с этого компьютера)
+cp apps/server/.env.example apps/server/.env   # строка подключения к этой базе
+pnpm db:migrate             # создать таблицы
+pnpm invite "Аня" "Миша"    # выдать инвайт-коды (имя — заметка в базе)
+```
+
+Дальше, в двух терминалах:
+
+```bash
+pnpm dev:server   # API на http://localhost:3000/api (перезапускается при изменениях)
+pnpm dev          # клиент; /api проксируется на сервер
+```
+
+- **Вход.** В разработке клиент сам ходит на `/api` и показывает вход по коду. Код можно вводить строчными и без дефисов. Тот же код входит в того же пользователя с любого устройства. Можно нажать «Пока без входа» — тогда всё как раньше, только в браузере.
+- **Синхронизация.** Мир по-прежнему живёт в браузере, а копия уходит на сервер через 1,5 с после изменений; под названием видно «сохранено на сервере» или «нет связи — сохраняю в браузере». Без связи изменения копятся и уходят, когда сервер снова доступен.
+- **Несколько устройств.** У копии на сервере есть номер версии. Если комнату меняли на другом устройстве, открывается последняя версия с сервера (несохранённые здесь изменения при этом теряются). При первом входе на новом устройстве, когда на сервере уже есть комната, приложение спрашивает, какую оставить.
+- **API:** `POST /api/auth/login {code}` → токен, `POST /api/auth/logout`, `GET /api/me`, `GET|PUT /api/world` (PUT с `baseVersion`; при расхождении — 409 с серверной версией), `GET /api/health`. Токен — `Authorization: Bearer …`, в базе только его хэш. Попыток входа — не больше 10 за 10 минут с одного IP.
+- **База:** `pnpm db:down` — остановить контейнер, `docker compose down -v` — удалить вместе с данными. Схема — [apps/server/prisma/schema.prisma](apps/server/prisma/schema.prisma); после её изменения — `pnpm db:migrate`.
+- **Сборка как на хостинге:** `pnpm --filter @interna/server build`, затем `pnpm --filter @interna/server start`. В разработке сервер запускается через tsx, а он не сохраняет метаданные типов для внедрения зависимостей Nest, поэтому в конструкторах стоит явный `@Inject(Класс)`.
+- **Клиент в продакшене** ходит на сервер, только если при сборке задан `VITE_API_URL` (например, `https://api.example.com/api`). Без него, как сейчас на Vercel, всё работает только в браузере. На сервере тогда нужно указать адрес сайта в `CORS_ORIGINS`.
+
 ## Деплой на Vercel
 
 Клиент — статический сайт, сервер не нужен. Настройки сборки лежат в [apps/client/vercel.json](apps/client/vercel.json).
@@ -35,10 +63,54 @@ pnpm build
 pnpm --filter @interna/client preview   # http://localhost:4173
 ```
 
+## Деплой сервера на Railway
+
+Сервер собирается в Docker-образ по [apps/server/Dockerfile](apps/server/Dockerfile). Контекст сборки — корень репозитория. При старте контейнер сам применяет миграции (`prisma migrate deploy`), потом запускает API. Тот же образ подойдёт и для VPS. Клиент остаётся на Vercel.
+
+Проверить образ локально (нужен Docker Desktop):
+
+```bash
+docker build -f apps/server/Dockerfile -t interna-server .
+docker run --rm -p 3000:3000 -e DATABASE_URL="postgresql://interna:interna_dev@host.docker.internal:5433/interna" interna-server
+```
+
+Первый раз на Railway:
+
+1. Запушить проект на GitHub. Railway собирает из репозитория, так что сервер должен быть в коммите.
+2. **New Project → Deploy from GitHub repo** → выбрать репозиторий. Если Railway сам создаст сервисы для клиента или `packages/shared`, удалить их: нужен только сервер.
+3. В том же проекте: **+ New → Database → PostgreSQL**.
+4. В сервисе сервера:
+   - **Root Directory** оставить пустым (корень репозитория).
+   - Переменные (Variables):
+     - `RAILWAY_DOCKERFILE_PATH` = `/apps/server/Dockerfile`
+     - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` — ссылка на базу этого проекта; имя `Postgres` должно совпадать с именем сервиса базы.
+     - `CORS_ORIGINS` = `https://interna-inky.vercel.app`. `PORT` Railway задаёт сам.
+   - В настройках сервиса (Settings):
+     - Healthcheck path: `/api/health`.
+     - Watch paths: `/apps/server/**` и `/pnpm-lock.yaml`, чтобы изменения клиента не пересобирали сервер.
+     - Networking → **Generate Domain**: получится адрес вида `https://…up.railway.app`.
+5. Проверить: `https://…up.railway.app/api/health` должен вернуть `{"ok":true}`.
+6. Выдать себе инвайт-код. Есть два способа:
+   - через [Railway CLI](https://docs.railway.com/guides/cli): `railway ssh` в сервис сервера, затем `node dist/cli/invite.js "имя"`;
+   - с этого компьютера: взять у сервиса базы `DATABASE_PUBLIC_URL` и выполнить
+     ```powershell
+     $env:DATABASE_URL = "<DATABASE_PUBLIC_URL>"; pnpm invite "имя"
+     ```
+     Переменная окружения важнее `.env`, так что код создастся в базе Railway, а не в локальной.
+7. На Vercel: Project → Settings → Environment Variables → `VITE_API_URL` = `https://…up.railway.app/api` (Production), затем **Redeploy**. Адрес вшивается в клиент при сборке, поэтому без пересборки он не появится.
+
+Дальше каждый `git push` с изменениями сервера пересобирает и перезапускает его, новые миграции применяются при старте.
+
+Заметки:
+- Пробный период Railway — $5 разово на 30 дней. Потом сервисы останавливаются, а данные базы удаляются ещё через 30 дней. Чтобы не потерять комнаты, до этого перейти на Hobby.
+- Если сервер недоступен, клиент работает как раньше: комната сохраняется в браузере и уходит на сервер, когда он вернётся.
+- Бэкап базы: `pg_dump` по `DATABASE_PUBLIC_URL`.
+
 ## Структура
 
 ```
 apps/client/       Vite + React + React Three Fiber
+  src/api/         запросы к серверу и синхронизация мира
   src/scene/       3D-сцена: комната, стены, камера, предметы, клик по полу
   src/character/   персонаж: модель, причёски, анимации, поиск пути (A*)
   public/models/   собранные GLB (результат assets/scripts)
@@ -48,6 +120,11 @@ apps/client/       Vite + React + React Three Fiber
   src/audio/       плеер колонки
   src/books/       разбор книг fb2 и epub для читалки
   src/storage/     файлы пользователя (музыка, фото, книги) в IndexedDB
+apps/server/       NestJS + Prisma: вход по инвайт-кодам, мир в Postgres
+  prisma/          схема базы и миграции
+  src/auth/        вход, сессии, ограничение попыток
+  src/world/       сохранение мира с проверкой версий
+  src/cli/         pnpm invite — выдать инвайт-коды
 packages/shared/   общие TS-типы мира: World, ObjectDef, PlacedObject, Character
 assets/scripts/    сборка и проверка 3D-моделей (glTF-Transform)
 assets/source/     исходные архивы ассетов (в git не попадают)

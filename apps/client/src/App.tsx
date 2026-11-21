@@ -9,6 +9,9 @@ import { ShelfPanel } from './ui/ShelfPanel';
 import { MusicPanel } from './ui/MusicPanel';
 import { FramePanel } from './ui/FramePanel';
 import { Reader } from './ui/Reader';
+import { LoginScreen } from './ui/LoginScreen';
+import { useAccountStore } from './store/accountStore';
+import { startWorldSync } from './api/worldSync';
 import { bookFiles, coverFiles, photoFiles } from './storage/files';
 import { useReaderStore } from './store/readerStore';
 import { useWorldStore } from './store/worldStore';
@@ -22,6 +25,17 @@ export function App() {
   const editing = useEditorStore((s) => s.active);
   const dark = isDarkHour(useRoomHour());
   const reading = useReaderStore((s) => s.open !== null);
+  const userId = useAccountStore((s) => (s.status === 'signed-in' ? (s.user?.id ?? null) : null));
+  const token = useAccountStore((s) => s.token);
+
+  // Сохранённый вход проверяем при запуске; после входа мир синхронизируется с сервером.
+  useEffect(() => {
+    void useAccountStore.getState().init();
+  }, []);
+  useEffect(() => {
+    if (!userId || !token) return;
+    return startWorldSync(userId, token);
+  }, [userId, token]);
 
   // В режиме расстановки карточки предметов и шкаф закрыты: предмет могут передвинуть или убрать.
   useEffect(() => {
@@ -60,6 +74,7 @@ export function App() {
         </>
       )}
       <Reader />
+      <LoginScreen />
     </div>
   );
 }

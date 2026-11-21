@@ -1,0 +1,13 @@
+# Контекст сборки образа сервера (apps/server/Dockerfile) — корень репозитория. В образ попадает только нужное серверу.
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.claude
+assets
+docs
+apps/client/*
+!apps/client/package.json
+apps/server/src/generated

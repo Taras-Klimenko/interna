@@ -1,0 +1,25 @@
+# Postgres для локальной разработки: `pnpm db:up` (или `docker compose up -d`).
+# Отдельный от системного Postgres контейнер на порту 5433, доступный только с этого компьютера.
+# Пароль — тестовый, только для локальной базы; на хостинге будет свой.
+# Удалить вместе с данными: `docker compose down -v`.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: interna-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: interna
+      POSTGRES_PASSWORD: interna_dev
+      POSTGRES_DB: interna
+    ports:
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - interna-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U interna -d interna']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  interna-db:

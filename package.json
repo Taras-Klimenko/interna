@@ -7,6 +7,11 @@
   },
   "scripts": {
     "dev": "pnpm --filter @interna/client dev",
+    "dev:server": "pnpm --filter @interna/server dev",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose stop",
+    "db:migrate": "pnpm --filter @interna/server db:migrate",
+    "invite": "pnpm --filter @interna/server invite",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "assets:characters": "node assets/scripts/build-characters.mjs",

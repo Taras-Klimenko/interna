@@ -1,3 +1,9 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Пакеты, которым разрешено запускать скрипты установки: Prisma скачивает движок миграций, esbuild (для tsx) проверяет свой бинарник.
+allowBuilds:
+  "@prisma/engines": true
+  prisma: true
+  esbuild: true

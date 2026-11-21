@@ -1,0 +1,3 @@
+# Сгенерированный клиент Prisma: собирается командой `prisma generate` (входит в `pnpm build`).
+/src/generated/
+/dist/

@@ -55,6 +55,8 @@ interface WorldStore {
   moveObject: (id: string, pos: GridPos, rotation: Rotation) => void;
   removeObject: (id: string) => void;
   resetRoom: () => void;
+  /** Заменить мир целиком: пришёл с сервера (вход с другого устройства, правки с телефона). */
+  replaceWorld: (world: World) => void;
   /** Пол и обои: id варианта из scene/roomStyles. */
   setRoomStyle: (patch: { floor?: string; wall?: string }) => void;
   setLight: (id: string, on: boolean) => void;
@@ -118,6 +120,11 @@ export const useWorldStore = create<WorldStore>()(
       setRoomStyle: (patch) =>
         set((s) => {
           Object.assign(s.world.room, patch);
+        }),
+      replaceWorld: (world) =>
+        set((s) => {
+          s.world = world;
+          s.teleportSeq += 1;
         }),
       setLight: (id, on) =>
         set((s) => {

@@ -1280,3 +1280,112 @@ button {
     text-align: left;
   }
 }
+
+/* Аккаунт: под названием — где хранится комната, и вход или выход. */
+.account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  pointer-events: auto;
+}
+
+.account-status[data-sync='offline'] {
+  color: #b5653f;
+}
+
+.account-action {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.app[data-dark='true'] .account {
+  color: rgba(243, 231, 218, 0.72);
+}
+
+/* Вход по инвайт-коду поверх комнаты. */
+.login-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(60, 44, 34, 0.28);
+  backdrop-filter: blur(3px);
+}
+
+.login {
+  display: grid;
+  gap: 12px;
+  width: min(380px, 100%);
+  padding: 24px 22px 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(60, 44, 34, 0.25);
+  backdrop-filter: blur(10px);
+}
+
+.login-title {
+  margin: 0;
+  font-size: 24px;
+}
+
+.login-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.login-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
+  font: inherit;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.login-input::placeholder {
+  letter-spacing: 0.08em;
+  color: rgba(138, 117, 102, 0.55);
+}
+
+.login-error {
+  margin: 0;
+  font-size: 13px;
+  color: #b5452f;
+}
+
+.login-submit {
+  width: 100%;
+  padding: 11px;
+}
+
+.login-skip {
+  padding: 4px;
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

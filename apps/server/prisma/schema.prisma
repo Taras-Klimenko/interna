@@ -1,0 +1,57 @@
+// Схема базы Interna. После изменений: `pnpm --filter @interna/server db:migrate`.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+  // Сервер собирается обычным tsc в .js — импорты внутри клиента тоже должны быть .js.
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Тестировщик. Регистрации нет: человек входит по инвайт-коду, первый вход создаёт пользователя.
+model User {
+  id        String    @id @default(uuid())
+  name      String    @default("")
+  createdAt DateTime  @default(now())
+  invite    Invite?
+  sessions  Session[]
+  world     World?
+}
+
+/// Инвайт-код. Он же ключ для входа с другого устройства: тот же код — тот же пользователь.
+model Invite {
+  code      String    @id
+  /// Для кого код (видно только в базе), например «Аня, тестировщица».
+  note      String    @default("")
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+  userId    String?   @unique
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+/// Вход с конкретного устройства. В базе только хэш токена: утёкшая база не даёт войти.
+model Session {
+  id         String   @id @default(uuid())
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String   @default("")
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Мир пользователя целиком, одним JSON-документом. version растёт с каждым сохранением:
+/// по нему видно, что мир успели поменять с другого устройства.
+model World {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data      Json
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt
+}

@@ -3,6 +3,7 @@ import { useUiStore } from '../store/uiStore';
 import { PHASE_ICONS, PHASE_LABELS, phaseOf } from '../scene/timeOfDay';
 import { useRoomHour } from './useRoomHour';
 import { useEditorStore } from '../store/editorStore';
+import { AccountBadge } from './AccountBadge';
 
 export function Hud() {
   const showGrid = useUiStore((s) => s.showGrid);
@@ -40,6 +41,7 @@ export function Hud() {
       <header className="hud-brand">
         <span className="hud-title">Interna</span>
         <span className="hud-subtitle">прототип · тестовый персонаж</span>
+        <AccountBadge />
       </header>
 
       <div className="hud-toolbar" role="toolbar" aria-label="Камера">
