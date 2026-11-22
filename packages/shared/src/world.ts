@@ -152,6 +152,8 @@ export interface Character {
   id: string;
   name: string;
   appearance: CharacterAppearance;
+  /** Характер своими словами: модель читает его перед каждым разговором. */
+  personality: string;
   /** Последняя клетка, где персонаж стоял. */
   pos: GridPos;
 }

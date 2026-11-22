@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import type { Book, CharacterAppearance, ReadingProgress, GridPos, Photo, PlacedObject, Rotation, Track, World } from '@interna/shared';
+import { DEFAULT_PERSONALITY, PERSONALITY_MAX } from '../character/personalities';
 import { buildOccupancy, nearestWalkable } from '../character/pathfinding';
 
 /** Стартовая расстановка: её же возвращает кнопка «Сбросить комнату». */
@@ -25,14 +26,21 @@ const initialObjects: PlacedObject[] = [
   { id: 'o13', defId: 'window', pos: { x: 7, z: 0 }, rotation: 0, state: {} },
 ];
 
-/** Имя персонажа по умолчанию — подходит и девушке, и парню; его можно поменять в панели персонажа. */
-export const DEFAULT_CHARACTER_NAME = 'Саша';
-/** Так персонажа звали в первых версиях прототипа. */
-const OLD_TEST_NAME = 'Тест';
+/** Имя персонажа по умолчанию; его можно поменять в панели персонажа. */
+export const DEFAULT_CHARACTER_NAME = 'Ева';
+/** Так персонажа звали по умолчанию в прошлых версиях прототипа. */
+const OLD_DEFAULT_NAMES = ['Тест', 'Саша'];
 
-/** Мир из старой версии (из браузера или с сервера) — к нынешнему виду. */
+/**
+ * Мир из старой версии (из браузера или с сервера) — к нынешнему виду. Срабатывает один раз:
+ * у старого мира нет характера, а после обновления он есть, и имя больше не трогаем.
+ */
 function upgradeWorld(world: World): World {
-  if (world.character.name === OLD_TEST_NAME) world.character.name = DEFAULT_CHARACTER_NAME;
+  const character = world.character as World['character'] & { personality?: string };
+  if (typeof character.personality !== 'string') {
+    character.personality = DEFAULT_PERSONALITY;
+    if (OLD_DEFAULT_NAMES.includes(character.name)) character.name = DEFAULT_CHARACTER_NAME;
+  }
   return world;
 }
 
@@ -44,6 +52,7 @@ const initialWorld: World = {
   character: {
     id: 'c1',
     name: DEFAULT_CHARACTER_NAME,
+    personality: DEFAULT_PERSONALITY,
     appearance: { body: 'female', hair: 'Hair_Long', beard: false, hairColor: '#ffffff' },
     pos: { x: 5, z: 3 },
   },
@@ -61,6 +70,7 @@ interface WorldStore {
   teleportSeq: number;
   setAppearance: (patch: Partial<CharacterAppearance>) => void;
   setCharacterName: (name: string) => void;
+  setPersonality: (text: string) => void;
   setCharacterPos: (pos: GridPos) => void;
   /** Ставит новый предмет и возвращает его id. Проверка «помещается ли» — на стороне вызывающего. */
   addObject: (defId: string, pos: GridPos, rotation: Rotation) => string;
@@ -87,8 +97,8 @@ interface WorldStore {
 
 /** Ключ в localStorage. Номер версии меняем, когда формат World ломается несовместимо. */
 const STORAGE_KEY = 'interna.world';
-/** 2 — персонажа «Тест» зовут по-новому. */
-const STORAGE_VERSION = 2;
+/** 2 — персонажа «Тест» зовут по-новому; 3 — у персонажа есть характер, по умолчанию его зовут Ева. */
+const STORAGE_VERSION = 3;
 
 export const useWorldStore = create<WorldStore>()(
   persist(
@@ -102,6 +112,10 @@ export const useWorldStore = create<WorldStore>()(
       setCharacterName: (name) =>
         set((s) => {
           s.world.character.name = name.slice(0, 40);
+        }),
+      setPersonality: (text) =>
+        set((s) => {
+          s.world.character.personality = text.slice(0, PERSONALITY_MAX);
         }),
       setCharacterPos: (pos) =>
         set((s) => {

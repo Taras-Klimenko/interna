@@ -1540,3 +1540,10 @@ button {
     font-size: 12px;
   }
 }
+
+.panel-textarea {
+  margin-top: 8px;
+  min-height: 96px;
+  line-height: 1.4;
+  resize: vertical;
+}

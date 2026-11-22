@@ -3,6 +3,8 @@ import { API_URL, OfflineError, api } from './http';
 /** Что сейчас в комнате — сервер превращает это в описание для модели (см. apps/server/src/chat). */
 export interface ChatContext {
   characterName: string;
+  personality: string;
+  gender: 'female' | 'male';
   hour: number;
   ownerInside: boolean;
   objects: { name: string; state?: string }[];

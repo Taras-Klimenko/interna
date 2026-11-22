@@ -44,6 +44,8 @@ export function buildChatContext(): ChatContext {
 
   return {
     characterName: world.character.name.trim() || DEFAULT_CHARACTER_NAME,
+    personality: world.character.personality,
+    gender: world.character.appearance.body,
     hour: Math.floor(hourFor(useUiStore.getState().timeMode)) % 24,
     ownerInside: useUiStore.getState().firstPerson,
     objects,

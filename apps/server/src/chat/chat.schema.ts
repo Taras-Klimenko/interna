@@ -10,6 +10,10 @@ const list = <T extends z.ZodType>(item: T, max: number) => z.array(item).transf
  */
 export const ChatContext = z.object({
   characterName: z.string().trim().min(1).transform((value) => value.slice(0, 40)),
+  /** Характер своими словами (из панели персонажа). Пусто — характер по умолчанию. */
+  personality: text(1200).default(''),
+  /** Тело модели персонажа: чтобы модель говорила о себе в нужном роде. */
+  gender: z.enum(['female', 'male']).optional(),
   /** Час в комнате, 0–23 (с учётом выбранного времени суток). */
   hour: z.number().int().min(0).max(23),
   /** Хозяин гуляет по комнате от первого лица. */

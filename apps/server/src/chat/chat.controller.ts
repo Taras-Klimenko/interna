@@ -18,7 +18,7 @@ import { AuthGuard, CurrentUser } from '../auth/auth.guard.js';
 import type { SessionUser } from '../auth/auth.service.js';
 import { ChatService } from './chat.service.js';
 import { SendChatBody } from './chat.schema.js';
-import { PERSONA, describeRoom } from './prompt.js';
+import { PERSONA, describeCharacter, describeRoom } from './prompt.js';
 import { providerErrorText, type ChatUsage } from './providers.js';
 
 /** Пока модель «думает», шлём пустые строки, чтобы прокси хостинга не закрыл молчащее соединение. */
@@ -87,7 +87,7 @@ export class ChatController {
       const turns = [...(await this.chat.turnsForModel(user.id)), { role: 'user' as const, text: message }];
       const result = await provider.chat({
         persona: PERSONA,
-        room: describeRoom(context),
+        room: `${describeCharacter(context)}\n\n${describeRoom(context)}`,
         turns,
         signal: abort.signal,
         onText: (text) => send('delta', { text }),

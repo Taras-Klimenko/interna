@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DEFAULT_CHARACTER_NAME, useWorldStore } from '../store/worldStore';
 import { useCharacterStore } from '../store/characterStore';
 import { ANIMATION_GROUPS, HAIR_COLORS, HAIR_OPTIONS } from '../character/assets';
+import { DEFAULT_PERSONALITY, PERSONALITY_MAX, PERSONALITY_PRESETS } from '../character/personalities';
 
 /** На узких экранах (телефоны) панель стартует свёрнутой, чтобы не закрывать комнату. */
 const startCollapsed = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
@@ -12,6 +13,8 @@ export function CharacterPanel() {
   const setAppearance = useWorldStore((s) => s.setAppearance);
   const name = useWorldStore((s) => s.world.character.name);
   const setCharacterName = useWorldStore((s) => s.setCharacterName);
+  const personality = useWorldStore((s) => s.world.character.personality);
+  const setPersonality = useWorldStore((s) => s.setPersonality);
   const currentClip = useCharacterStore((s) => s.currentClip);
   const playClip = useCharacterStore((s) => s.playClip);
   const [collapsed, setCollapsed] = useState(startCollapsed);
@@ -43,6 +46,37 @@ export function CharacterPanel() {
             aria-label="Имя персонажа"
             spellCheck={false}
           />
+        </section>
+
+        <section className="panel-section">
+          <h3>Характер</h3>
+          <div className="chip-row">
+            {PERSONALITY_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className="chip"
+                aria-pressed={personality === preset.text}
+                onClick={() => setPersonality(preset.text)}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <textarea
+            className="panel-input panel-textarea"
+            value={personality}
+            onChange={(e) => setPersonality(e.target.value)}
+            onBlur={() => !personality.trim() && setPersonality(DEFAULT_PERSONALITY)}
+            maxLength={PERSONALITY_MAX}
+            rows={5}
+            aria-label="Характер персонажа"
+            placeholder="Какой характер, как говорит, что любит…"
+          />
+          <p className="panel-note">
+            Своими словами: какой характер, как говорит, что любит. {name.trim() || DEFAULT_CHARACTER_NAME} прочитает это перед
+            каждым разговором. Можно взять готовый вариант и дописать.
+          </p>
         </section>
 
         <section className="panel-section">
