@@ -118,19 +118,29 @@ export function ChatPanel() {
             {status === 'ready' && messages.length === 0 && !pending && (
               <p className="sheet-empty">Напишите что-нибудь — {characterName} знает, что стоит в комнате и что лежит на полках.</p>
             )}
-            {messages.map((message) => (
-              <div key={message.id} className="chat-entry" data-role={message.role}>
-                <p className="chat-message" data-role={message.role}>
+            {messages.map((message) =>
+              message.kind === 'event' ? (
+                <p key={message.id} className="chat-event">
                   {message.text}
                 </p>
-                <ActionNotes actions={message.actions} name={characterName} />
-              </div>
-            ))}
+              ) : (
+                <div key={message.id} className="chat-entry" data-role={message.role}>
+                  <p className="chat-message" data-role={message.role}>
+                    {message.text}
+                  </p>
+                  <ActionNotes actions={message.actions} name={characterName} />
+                </div>
+              ),
+            )}
             {pending && (
               <>
-                <p className="chat-message" data-role="user">
-                  {pending.question}
-                </p>
+                {pending.kind === 'event' ? (
+                  <p className="chat-event">{pending.question}</p>
+                ) : (
+                  <p className="chat-message" data-role="user">
+                    {pending.question}
+                  </p>
+                )}
                 <div className="chat-entry" data-role="assistant">
                   <p className="chat-message" data-role="assistant" data-pending={!pending.answer}>
                     {pending.answer || '…'}

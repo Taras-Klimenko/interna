@@ -50,6 +50,9 @@ export const ChatContext = z.object({
 });
 export type ChatContext = z.infer<typeof ChatContext>;
 
+/** Тихая минута: нужна только комната. */
+export const IdleBody = z.object({ context: ChatContext });
+
 export const SendChatBody = z.object({
   message: z.string().trim().min(1).max(2000),
   context: ChatContext,

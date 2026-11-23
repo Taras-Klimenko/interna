@@ -1574,3 +1574,33 @@ button {
   font-size: 12px;
   color: var(--ink-soft);
 }
+
+/* Событие в комнате, на которое персонаж откликнулся сам: тихая заметка посередине */
+.chat-event {
+  align-self: center;
+  max-width: 92%;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.chat-event::before {
+  content: '✦ ';
+}
+
+/* Персонаж сказал что-то, пока чат был закрыт */
+.hud-inside {
+  position: relative;
+}
+
+.hud-unread {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d9534f;
+  box-shadow: 0 0 0 2px var(--panel);
+}

@@ -65,6 +65,8 @@ model ChatMessage {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// user — хозяин комнаты, assistant — персонаж.
   role      String
+  /// message — обычная реплика; event — событие в комнате (вернулись, новая книга…), на которое персонаж откликнулся сам.
+  kind      String   @default("message")
   text      String
   /// Что персонаж сделал в комнате вместе с этим ответом (включил свет, полил растение…): [{type, objectId, …}].
   actions   Json?

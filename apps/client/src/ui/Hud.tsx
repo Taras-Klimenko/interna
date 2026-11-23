@@ -19,6 +19,7 @@ export function Hud() {
   const firstPerson = useUiStore((s) => s.firstPerson) && !editing;
   const setFirstPerson = useUiStore((s) => s.setFirstPerson);
   const chatOpen = useChatStore((s) => s.open);
+  const chatUnread = useChatStore((s) => s.unread);
   // Без сервера (сборка без VITE_API_URL) разговаривать не через кого.
   const chatAvailable = useAccountStore((s) => s.status !== 'disabled');
 
@@ -91,6 +92,7 @@ export function Hud() {
           >
             <span aria-hidden="true">💬</span>
             <span className="hud-time-label">Поговорить</span>
+            {chatUnread && !chatOpen && <span className="hud-unread" aria-label="есть новая реплика" />}
           </button>
         )}
         <button

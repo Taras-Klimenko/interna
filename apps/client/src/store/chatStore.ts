@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ChatError, clearChat, loadChat, sendChat, type ChatMessage } from '../api/chat';
+import { ChatError, clearChat, loadChat, sendChat, sendEvent, type ChatDone, type ChatMessage, type RoomEvent } from '../api/chat';
 import { ApiError, OfflineError } from '../api/http';
 import { buildChatContext } from '../chat/context';
 import { performRoomAction, type RoomAction } from '../chat/actions';
@@ -22,24 +22,33 @@ interface ChatStore {
   open: boolean;
   status: ChatStatus;
   messages: ChatMessage[];
-  /** Вопрос, на который персонаж сейчас отвечает, и то, что он уже успел «сказать». */
-  pending: { question: string; answer: string; actions: RoomAction[] } | null;
+  /**
+   * На что персонаж сейчас отвечает (реплика хозяина или событие в комнате) и что он уже успел «сказать».
+   */
+  pending: { kind: 'message' | 'event'; question: string; answer: string; actions: RoomAction[] } | null;
   /** Последняя ошибка отправки — показываем в панели, текст вопроса возвращаем в поле ввода. */
   error: string | null;
   used: number;
   limit: number;
   /** Реплика над головой персонажа. */
   bubble: { text: string; until: number } | null;
+  /** Персонаж сказал что-то, пока чат был закрыт: точка на кнопке «Поговорить». */
+  unread: boolean;
   /** Для какого пользователя загружена история: после смены аккаунта грузим заново. */
   userId: string | null;
+  /** Загрузить историю (если ещё не загружена). */
+  ensureLoaded: () => Promise<void>;
   openChat: () => void;
   closeChat: () => void;
   /** Отправить реплику. Возвращает false, если не получилось (текст стоит вернуть в поле ввода). */
   send: (text: string) => Promise<boolean>;
+  /** Что-то произошло в комнате — персонаж откликается сам. label — заметка в чате, пока ждём ответ. */
+  react: (events: RoomEvent[], label: string) => Promise<boolean>;
   clear: () => Promise<void>;
 }
 
 let controller: AbortController | null = null;
+let loading: Promise<void> | null = null;
 
 function errorText(error: unknown) {
   if (error instanceof ChatError) return error.message;
@@ -58,48 +67,20 @@ function stopTalking() {
   if (useCharacterStore.getState().manualClip === TALK_CLIP) useCharacterStore.setState({ manualClip: null });
 }
 
-export const useChatStore = create<ChatStore>()((set, get) => ({
-  open: false,
-  status: 'idle',
-  messages: [],
-  pending: null,
-  error: null,
-  used: 0,
-  limit: 0,
-  bubble: null,
-  userId: null,
+type Stream = (
+  onDelta: (text: string) => void,
+  onAction: (action: RoomAction) => void,
+  signal: AbortSignal,
+) => Promise<ChatDone>;
 
-  openChat: () => {
-    // Чат и панели предметов занимают одно место на экране.
-    useInteractionStore.getState().closePanel();
-    set({ open: true });
-    const { token, user, status } = useAccountStore.getState();
-    if (status !== 'signed-in' || !token || !user) return;
-    if (get().userId === user.id && get().status !== 'error' && get().status !== 'idle') return;
-    set({ status: 'loading', userId: user.id, error: null });
-    loadChat(token)
-      .then((state) =>
-        set({ status: state.enabled ? 'ready' : 'disabled', messages: state.messages, used: state.used, limit: state.limit }),
-      )
-      .catch((error: unknown) => {
-        if (error instanceof ApiError && error.status === 401) useAccountStore.getState().expire();
-        set({ status: 'error', error: errorText(error) });
-      });
-  },
-
-  closeChat: () => set({ open: false }),
-
-  send: async (text) => {
-    const question = text.trim();
-    const { token } = useAccountStore.getState();
-    if (!question || !token || get().pending) return false;
+export const useChatStore = create<ChatStore>()((set, get) => {
+  /** Общий путь для реплики и события: ответ потоком, действия сразу, реплика над головой. */
+  async function reply(kind: 'message' | 'event', question: string, stream: Stream) {
     controller = new AbortController();
-    set({ pending: { question, answer: '', actions: [] }, error: null, bubble: { text: '', until: Infinity } });
+    set({ pending: { kind, question, answer: '', actions: [] }, error: null, bubble: { text: '', until: Infinity } });
     startTalking();
     try {
-      const done = await sendChat(
-        token,
-        { message: question, context: buildChatContext() },
+      const done = await stream(
         (delta) =>
           set((s) => {
             const answer = (s.pending?.answer ?? '') + delta;
@@ -112,43 +93,110 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         },
         controller.signal,
       );
-      const asked: ChatMessage = { id: `q-${done.message.id}`, role: 'user', text: question, createdAt: done.message.createdAt };
+      const asked: ChatMessage = done.asked ?? {
+        id: `q-${done.message.id}`,
+        role: 'user',
+        kind,
+        text: question,
+        createdAt: done.message.createdAt,
+      };
       set((s) => ({
         messages: [...s.messages, asked, done.message],
         pending: null,
         used: done.used,
         limit: done.limit,
         bubble: { text: done.message.text, until: Date.now() + bubbleMs(done.message.text) },
+        unread: s.unread || !s.open,
       }));
       return true;
     } catch (error) {
       if ((error as { status?: number }).status === 401) useAccountStore.getState().expire();
       const aborted = controller?.signal.aborted;
-      set({ pending: null, bubble: null, error: aborted ? null : errorText(error) });
+      // Событие без ответа — не беда: показывать ошибку не нужно, персонаж просто промолчал.
+      set({ pending: null, bubble: null, error: aborted || kind === 'event' ? null : errorText(error) });
       return false;
     } finally {
       controller = null;
       stopTalking();
     }
-  },
+  }
 
-  clear: async () => {
-    const { token } = useAccountStore.getState();
-    if (!token) return;
-    controller?.abort();
-    try {
-      await clearChat(token);
-      set({ messages: [], error: null, bubble: null });
-    } catch (error) {
-      set({ error: errorText(error) });
-    }
-  },
-}));
+  return {
+    open: false,
+    status: 'idle',
+    messages: [],
+    pending: null,
+    error: null,
+    used: 0,
+    limit: 0,
+    bubble: null,
+    unread: false,
+    userId: null,
+
+    ensureLoaded: () => {
+      const { token, user, status } = useAccountStore.getState();
+      if (status !== 'signed-in' || !token || !user) return Promise.resolve();
+      if (get().userId === user.id && (get().status === 'ready' || get().status === 'disabled')) return Promise.resolve();
+      if (loading) return loading;
+      set({ status: 'loading', userId: user.id, error: null });
+      loading = loadChat(token)
+        .then((state) =>
+          set({ status: state.enabled ? 'ready' : 'disabled', messages: state.messages, used: state.used, limit: state.limit }),
+        )
+        .catch((error: unknown) => {
+          if (error instanceof ApiError && error.status === 401) useAccountStore.getState().expire();
+          set({ status: 'error', error: errorText(error) });
+        })
+        .finally(() => {
+          loading = null;
+        });
+      return loading;
+    },
+
+    openChat: () => {
+      // Чат и панели предметов занимают одно место на экране.
+      useInteractionStore.getState().closePanel();
+      set({ open: true, unread: false });
+      void get().ensureLoaded();
+    },
+
+    closeChat: () => set({ open: false }),
+
+    send: async (text) => {
+      const question = text.trim();
+      const { token } = useAccountStore.getState();
+      if (!question || !token || get().pending) return false;
+      return reply('message', question, (onDelta, onAction, signal) =>
+        sendChat(token, { message: question, context: buildChatContext() }, onDelta, onAction, signal),
+      );
+    },
+
+    react: async (events, label) => {
+      const { token } = useAccountStore.getState();
+      if (!token || get().pending || get().status !== 'ready') return false;
+      return reply('event', label, (onDelta, onAction, signal) =>
+        sendEvent(token, { events, context: buildChatContext() }, onDelta, onAction, signal),
+      );
+    },
+
+    clear: async () => {
+      const { token } = useAccountStore.getState();
+      if (!token) return;
+      controller?.abort();
+      try {
+        await clearChat(token);
+        set({ messages: [], error: null, bubble: null });
+      } catch (error) {
+        set({ error: errorText(error) });
+      }
+    },
+  };
+});
 
 /** Вышли из аккаунта — разговор этого пользователя больше не показываем. */
 useAccountStore.subscribe((state, previous) => {
   if (state.status !== 'signed-in' && previous.status === 'signed-in') {
     controller?.abort();
-    useChatStore.setState({ status: 'idle', messages: [], pending: null, userId: null, bubble: null, error: null });
+    useChatStore.setState({ status: 'idle', messages: [], pending: null, userId: null, bubble: null, error: null, unread: false });
   }
 });

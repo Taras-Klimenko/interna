@@ -18,6 +18,8 @@ export interface ChatContext {
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
+  /** event — не слова хозяина, а событие в комнате, на которое персонаж откликнулся сам. */
+  kind?: 'message' | 'event';
   text: string;
   /** Что персонаж сделал в комнате вместе с этим ответом. */
   actions?: RoomAction[];
@@ -33,7 +35,18 @@ export interface ChatState {
   limit: number;
 }
 
+/** Событие в комнате, на которое персонаж откликается сам (см. apps/server/src/chat/events.ts). */
+export type RoomEvent =
+  | { type: 'visit'; hoursAway: number }
+  | { type: 'newBooks'; books: { title: string; author: string }[] }
+  | { type: 'newPhoto'; caption: string }
+  | { type: 'newTracks'; titles: string[] }
+  | { type: 'newObjects'; names: string[] }
+  | { type: 'silence'; minutes: number };
+
 export interface ChatDone {
+  /** Сохранённая реплика хозяина (или событие). */
+  asked?: ChatMessage;
   message: ChatMessage;
   used: number;
   limit: number;
@@ -51,9 +64,31 @@ export const clearChat = (token: string) => api<{ ok: boolean }>('/chat', { meth
  * onDelta получает кусочки ответа, onAction — действия персонажа в комнате (выполнять сразу);
  * итог — сохранённое сообщение персонажа.
  */
-export async function sendChat(
+export function sendChat(
   token: string,
   body: { message: string; context: ChatContext },
+  onDelta: (text: string) => void,
+  onAction: (action: RoomAction) => void,
+  signal?: AbortSignal,
+): Promise<ChatDone> {
+  return streamReply('/chat', token, body, onDelta, onAction, signal);
+}
+
+/** Сообщить о событии в комнате: персонаж откликнется так же, потоком. */
+export function sendEvent(
+  token: string,
+  body: { events: RoomEvent[]; context: ChatContext },
+  onDelta: (text: string) => void,
+  onAction: (action: RoomAction) => void,
+  signal?: AbortSignal,
+): Promise<ChatDone> {
+  return streamReply('/chat/event', token, body, onDelta, onAction, signal);
+}
+
+async function streamReply(
+  path: string,
+  token: string,
+  body: unknown,
   onDelta: (text: string) => void,
   onAction: (action: RoomAction) => void,
   signal?: AbortSignal,
@@ -61,7 +96,7 @@ export async function sendChat(
   if (!API_URL) throw new OfflineError('API не настроен');
   let response: Response;
   try {
-    response = await fetch(`${API_URL}/chat`, {
+    response = await fetch(`${API_URL}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),

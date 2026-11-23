@@ -13,6 +13,8 @@ import { LoginScreen } from './ui/LoginScreen';
 import { ChatPanel } from './ui/ChatPanel';
 import { useAccountStore } from './store/accountStore';
 import { startWorldSync } from './api/worldSync';
+import { startRoomEvents } from './chat/events';
+import { startIdleLife } from './chat/idle';
 import { bookFiles, coverFiles, photoFiles } from './storage/files';
 import { useReaderStore } from './store/readerStore';
 import { useWorldStore } from './store/worldStore';
@@ -37,6 +39,16 @@ export function App() {
     if (!userId || !token) return;
     return startWorldSync(userId, token);
   }, [userId, token]);
+  // Персонаж замечает, что происходит в комнате (вернулись, новая книга…), и откликается сам.
+  useEffect(() => {
+    if (!userId) return;
+    return startRoomEvents(userId);
+  }, [userId]);
+  // А пока вы молчите, раз в несколько минут сам решает, чем заняться.
+  useEffect(() => {
+    if (!userId) return;
+    return startIdleLife();
+  }, [userId]);
 
   // В режиме расстановки карточки предметов и шкаф закрыты: предмет могут передвинуть или убрать.
   useEffect(() => {
