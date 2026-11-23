@@ -66,6 +66,8 @@ model ChatMessage {
   /// user — хозяин комнаты, assistant — персонаж.
   role      String
   text      String
+  /// Что персонаж сделал в комнате вместе с этим ответом (включил свет, полил растение…): [{type, objectId, …}].
+  actions   Json?
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])

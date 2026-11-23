@@ -18,11 +18,26 @@ export const ChatContext = z.object({
   hour: z.number().int().min(0).max(23),
   /** Хозяин гуляет по комнате от первого лица. */
   ownerInside: z.boolean(),
-  objects: list(z.object({ name: text(60), state: text(160).optional() }), 80),
+  objects: list(
+    z.object({
+      id: text(100),
+      name: text(60),
+      state: text(160).optional(),
+      /** Что с предметом можно сделать: от этого зависят инструменты модели. */
+      can: list(z.enum(['light', 'water', 'music', 'books']), 4).default([]),
+      /** Включён ли свет (для light). */
+      on: z.boolean().optional(),
+      /** Названия треков колонки (для music). */
+      tracks: list(text(200), 100).default([]),
+    }),
+    80,
+  ),
   books: list(
     z.object({
       title: text(200),
       author: text(120),
+      /** В каком шкафу стоит. */
+      shelfId: text(100).default(''),
       note: text(500),
       /** Сколько прочитано, в процентах. */
       percent: z.number().min(0).max(100).optional(),

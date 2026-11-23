@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { ChatError, clearChat, loadChat, sendChat, type ChatMessage } from '../api/chat';
 import { ApiError, OfflineError } from '../api/http';
 import { buildChatContext } from '../chat/context';
+import { performRoomAction, type RoomAction } from '../chat/actions';
 import { useAccountStore } from './accountStore';
 import { useCharacterStore } from './characterStore';
 import { useInteractionStore } from './interactionStore';
@@ -22,7 +23,7 @@ interface ChatStore {
   status: ChatStatus;
   messages: ChatMessage[];
   /** Вопрос, на который персонаж сейчас отвечает, и то, что он уже успел «сказать». */
-  pending: { question: string; answer: string } | null;
+  pending: { question: string; answer: string; actions: RoomAction[] } | null;
   /** Последняя ошибка отправки — показываем в панели, текст вопроса возвращаем в поле ввода. */
   error: string | null;
   used: number;
@@ -93,7 +94,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     const { token } = useAccountStore.getState();
     if (!question || !token || get().pending) return false;
     controller = new AbortController();
-    set({ pending: { question, answer: '' }, error: null, bubble: { text: '', until: Infinity } });
+    set({ pending: { question, answer: '', actions: [] }, error: null, bubble: { text: '', until: Infinity } });
     startTalking();
     try {
       const done = await sendChat(
@@ -104,6 +105,11 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
             const answer = (s.pending?.answer ?? '') + delta;
             return { pending: s.pending && { ...s.pending, answer }, bubble: { text: answer, until: Infinity } };
           }),
+        (action) => {
+          // Персонаж берётся за дело сразу, не дожидаясь конца ответа.
+          performRoomAction(action);
+          set((s) => ({ pending: s.pending && { ...s.pending, actions: [...s.pending.actions, action] } }));
+        },
         controller.signal,
       );
       const asked: ChatMessage = { id: `q-${done.message.id}`, role: 'user', text: question, createdAt: done.message.createdAt };

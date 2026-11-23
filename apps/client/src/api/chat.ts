@@ -1,4 +1,5 @@
 import { API_URL, OfflineError, api } from './http';
+import type { RoomAction } from '../chat/actions';
 
 /** Что сейчас в комнате — сервер превращает это в описание для модели (см. apps/server/src/chat). */
 export interface ChatContext {
@@ -7,8 +8,8 @@ export interface ChatContext {
   gender: 'female' | 'male';
   hour: number;
   ownerInside: boolean;
-  objects: { name: string; state?: string }[];
-  books: { title: string; author: string; note: string; percent?: number }[];
+  objects: { id: string; name: string; state?: string; can: ('light' | 'water' | 'music' | 'books')[]; on?: boolean; tracks: string[] }[];
+  books: { title: string; author: string; shelfId: string; note: string; percent?: number }[];
   playlist: string[];
   nowPlaying?: string;
   photos: string[];
@@ -18,6 +19,8 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  /** Что персонаж сделал в комнате вместе с этим ответом. */
+  actions?: RoomAction[];
   createdAt: string;
 }
 
@@ -45,12 +48,14 @@ export const clearChat = (token: string) => api<{ ok: boolean }>('/chat', { meth
 
 /**
  * Отправить реплику и читать ответ по мере того, как персонаж его «пишет» (Server-Sent Events).
- * onDelta получает кусочки ответа; итог — сохранённое сообщение персонажа.
+ * onDelta получает кусочки ответа, onAction — действия персонажа в комнате (выполнять сразу);
+ * итог — сохранённое сообщение персонажа.
  */
 export async function sendChat(
   token: string,
   body: { message: string; context: ChatContext },
   onDelta: (text: string) => void,
+  onAction: (action: RoomAction) => void,
   signal?: AbortSignal,
 ): Promise<ChatDone> {
   if (!API_URL) throw new OfflineError('API не настроен');
@@ -92,6 +97,7 @@ export async function sendChat(
       const event = parseEvent(raw);
       if (!event) continue;
       if (event.type === 'delta') onDelta(String(event.data.text ?? ''));
+      else if (event.type === 'action' && event.data.action) onAction(event.data.action as RoomAction);
       else if (event.type === 'done') return event.data as unknown as ChatDone;
       else if (event.type === 'error') throw new ChatError(String(event.data.message ?? 'Не получилось ответить'));
     }

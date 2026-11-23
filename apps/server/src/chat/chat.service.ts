@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
 import { createChatProvider, type ChatProvider, type ChatTurn, type ChatUsage } from './providers.js';
+import type { RoomAction } from './tools.js';
+import type { Prisma } from '../generated/prisma/client.js';
 
 /** Сколько последних реплик отправляем модели: этого хватает, чтобы держать нить разговора. */
 const HISTORY_FOR_MODEL = 30;
@@ -12,7 +14,19 @@ export interface ChatMessageView {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  /** Что персонаж сделал вместе с этим ответом. */
+  actions: RoomAction[];
   createdAt: Date;
+}
+
+const VIEW = { id: true, role: true, text: true, actions: true, createdAt: true } as const;
+
+function toView(row: { id: string; role: string; text: string; actions: unknown; createdAt: Date }): ChatMessageView {
+  return {
+    ...row,
+    role: row.role === 'user' ? 'user' : 'assistant',
+    actions: Array.isArray(row.actions) ? (row.actions as RoomAction[]) : [],
+  };
 }
 
 @Injectable()
@@ -31,9 +45,9 @@ export class ChatService {
       where: { userId },
       orderBy: { createdAt: 'desc' },
       take,
-      select: { id: true, role: true, text: true, createdAt: true },
+      select: VIEW,
     });
-    return rows.reverse().map((row) => ({ ...row, role: row.role === 'user' ? 'user' : 'assistant' }));
+    return rows.reverse().map(toView);
   }
 
   /** История для модели: начинается с реплики хозяина (так требуют API). */
@@ -61,15 +75,21 @@ export class ChatService {
   }
 
   /** Вопрос и ответ сохраняются вместе, когда ответ готов: в истории не остаётся вопросов без ответа. */
-  async saveExchange(userId: string, question: string, answer: string, askedAt: Date) {
+  async saveExchange(userId: string, question: string, answer: string, askedAt: Date, actions: RoomAction[] = []) {
     const [, reply] = await this.prisma.$transaction([
       this.prisma.chatMessage.create({ data: { userId, role: 'user', text: question, createdAt: askedAt } }),
       this.prisma.chatMessage.create({
-        data: { userId, role: 'assistant', text: answer, createdAt: new Date(Math.max(Date.now(), askedAt.getTime() + 1)) },
-        select: { id: true, role: true, text: true, createdAt: true },
+        data: {
+          userId,
+          role: 'assistant',
+          text: answer,
+          actions: actions.length > 0 ? (actions as unknown as Prisma.InputJsonValue) : undefined,
+          createdAt: new Date(Math.max(Date.now(), askedAt.getTime() + 1)),
+        },
+        select: VIEW,
       }),
     ]);
-    return reply;
+    return toView(reply);
   }
 
   clear(userId: string) {

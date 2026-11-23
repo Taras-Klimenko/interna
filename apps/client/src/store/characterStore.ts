@@ -11,6 +11,8 @@ export interface CharacterTask {
   action: ActionId;
   /** Точка в мировых координатах, к которой повернуться лицом. */
   face: { x: number; z: number };
+  /** Уточнение дела: название трека, название книги. */
+  arg?: string;
   phase: 'walking' | 'acting';
 }
 

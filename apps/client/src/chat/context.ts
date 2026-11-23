@@ -31,12 +31,29 @@ export function buildChatContext(): ChatContext {
 
   const objects = world.objects.flatMap((object) => {
     const def = CATALOG[object.defId];
-    return def ? [{ name: def.name, state: stateOf(object, def, nowPlaying) }] : [];
+    if (!def) return [];
+    // Что с предметом можно сделать: по этому сервер даёт модели инструменты.
+    const can: ('light' | 'water' | 'music' | 'books')[] = [];
+    if (has(def, 'light')) can.push('light');
+    if (has(def, 'needs')) can.push('water');
+    if (has(def, 'media')) can.push('music');
+    if (has(def, 'container')) can.push('books');
+    return [
+      {
+        id: object.id,
+        name: def.name,
+        state: stateOf(object, def, nowPlaying),
+        can,
+        on: has(def, 'light') ? (object.state.light?.on ?? false) : undefined,
+        tracks: (object.state.media?.playlist ?? []).map((track) => track.title),
+      },
+    ];
   });
   const books = world.objects.flatMap((object) =>
     (object.state.container ?? []).map((book) => ({
       title: book.title,
       author: book.author,
+      shelfId: object.id,
       note: book.note,
       percent: book.progress ? Math.round(book.progress.percent * 100) : undefined,
     })),

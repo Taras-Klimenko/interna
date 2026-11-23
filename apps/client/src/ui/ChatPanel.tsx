@@ -4,6 +4,8 @@ import { useAccountStore } from '../store/accountStore';
 import { DEFAULT_CHARACTER_NAME, useWorldStore } from '../store/worldStore';
 import { useInteractionStore } from '../store/interactionStore';
 import { useReaderStore } from '../store/readerStore';
+import { ACTION_ICONS, actionLabel, type RoomAction } from '../chat/actions';
+import { unlockAudio } from '../audio/player';
 
 /** Когда до дневного лимита остаётся столько сообщений, показываем счётчик. */
 const SHOW_REMAINING_BELOW = 10;
@@ -59,6 +61,8 @@ export function ChatPanel() {
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     if (!canSend) return;
+    // Персонаж может включить музыку по ходу ответа, а браузеры дают звук только в ответ на нажатие.
+    unlockAudio();
     const text = draft;
     setDraft('');
     const ok = await useChatStore.getState().send(text);
@@ -115,18 +119,24 @@ export function ChatPanel() {
               <p className="sheet-empty">Напишите что-нибудь — {characterName} знает, что стоит в комнате и что лежит на полках.</p>
             )}
             {messages.map((message) => (
-              <p key={message.id} className="chat-message" data-role={message.role}>
-                {message.text}
-              </p>
+              <div key={message.id} className="chat-entry" data-role={message.role}>
+                <p className="chat-message" data-role={message.role}>
+                  {message.text}
+                </p>
+                <ActionNotes actions={message.actions} name={characterName} />
+              </div>
             ))}
             {pending && (
               <>
                 <p className="chat-message" data-role="user">
                   {pending.question}
                 </p>
-                <p className="chat-message" data-role="assistant" data-pending={!pending.answer}>
-                  {pending.answer || '…'}
-                </p>
+                <div className="chat-entry" data-role="assistant">
+                  <p className="chat-message" data-role="assistant" data-pending={!pending.answer}>
+                    {pending.answer || '…'}
+                  </p>
+                  <ActionNotes actions={pending.actions} name={characterName} />
+                </div>
               </>
             )}
             {error && (
@@ -159,5 +169,19 @@ export function ChatPanel() {
         </>
       )}
     </aside>
+  );
+}
+
+/** Что персонаж сделал в комнате вместе с ответом: «💡 Ева включает свет — Торшер». */
+function ActionNotes({ actions, name }: { actions?: RoomAction[]; name: string }) {
+  if (!actions || actions.length === 0) return null;
+  return (
+    <ul className="chat-actions-list">
+      {actions.map((action, index) => (
+        <li key={index}>
+          <span aria-hidden="true">{ACTION_ICONS[action.type]}</span> {name} {actionLabel(action)}
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -59,7 +59,10 @@ export function Character() {
     const group = ref.current;
     if (!task || task.phase !== 'walking' || !group) return;
     targetYaw.current = Math.atan2(task.face.x - group.position.x, task.face.z - group.position.z);
-    useCharacterStore.setState({ task: { ...task, phase: 'acting' }, manualClip: ACTIONS[task.action].clip });
+    const clip = ACTIONS[task.action].clip;
+    useCharacterStore.setState({ task: { ...task, phase: 'acting' }, manualClip: clip });
+    // Дело без анимации (просто подойти) готово сразу.
+    if (!clip) completeTask();
   }, []);
 
   // Стартовая позиция — из сохранённого мира. Её же берём после сброса комнаты (teleportSeq).
@@ -193,8 +196,13 @@ export function Character() {
     (finished: string) => {
       const { manualClip, task } = useCharacterStore.getState();
       if (manualClip !== finished) return;
-      if (task?.phase === 'acting') completeTask();
-      playClip(null);
+      if (task?.phase === 'acting') {
+        // Сначала снимаем анимацию, потом завершаем дело: оно может сразу начать следующее из очереди.
+        useCharacterStore.setState({ manualClip: null });
+        completeTask();
+      } else {
+        playClip(null);
+      }
     },
     [playClip],
   );

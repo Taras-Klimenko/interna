@@ -20,6 +20,7 @@ import { ChatService } from './chat.service.js';
 import { SendChatBody } from './chat.schema.js';
 import { PERSONA, describeCharacter, describeRoom } from './prompt.js';
 import { providerErrorText, type ChatUsage } from './providers.js';
+import { buildTools, runTool, type RoomAction } from './tools.js';
 
 /** Пока модель «думает», шлём пустые строки, чтобы прокси хостинга не закрыл молчащее соединение. */
 const PING_MS = 10_000;
@@ -45,8 +46,9 @@ export class ChatController {
   }
 
   /**
-   * Отправить реплику. Ответ — поток событий: `delta` {text} — кусочек ответа, `done` {message, used, limit} —
-   * ответ готов и сохранён, `error` {message} — не получилось (вопрос тогда не сохраняется).
+   * Отправить реплику. Ответ — поток событий: `delta` {text} — кусочек ответа, `action` {action} — персонаж
+   * что-то делает в комнате (клиент выполняет сразу), `done` {message, used, limit} — ответ готов и сохранён,
+   * `error` {message} — не получилось (вопрос тогда не сохраняется).
    */
   @Post()
   async send(@CurrentUser() user: SessionUser, @Body() body: unknown, @Res() res: Response) {
@@ -83,19 +85,31 @@ export class ChatController {
     }, PING_MS);
 
     let usage: ChatUsage | null = null;
+    const tools = buildTools(context);
+    const actions: RoomAction[] = [];
     try {
       const turns = [...(await this.chat.turnsForModel(user.id)), { role: 'user' as const, text: message }];
       const result = await provider.chat({
         persona: PERSONA,
         room: `${describeCharacter(context)}\n\n${describeRoom(context)}`,
         turns,
+        tools,
+        onToolCall: (name, args) => {
+          const { result, action } = runTool(tools, name, args, actions.length);
+          if (action) {
+            actions.push(action);
+            send('action', { action });
+          }
+          return result;
+        },
         signal: abort.signal,
         onText: (text) => send('delta', { text }),
       });
       usage = result.usage;
-      const answer = result.text.trim();
+      // Модель могла ответить одним действием, без слов: тогда короткое «сейчас».
+      const answer = result.text.trim() || (actions.length > 0 ? 'Сейчас.' : '');
       if (!answer) throw new Error('Модель вернула пустой ответ');
-      const reply = await this.chat.saveExchange(user.id, message, answer, askedAt);
+      const reply = await this.chat.saveExchange(user.id, message, answer, askedAt, actions);
       await this.chat.logCall(user.id, usage, Date.now() - started);
       send('done', { message: reply, used: used + 1, limit: this.chat.dailyLimit });
     } catch (error) {
