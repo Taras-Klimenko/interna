@@ -29,8 +29,13 @@ export function phaseOf(hour: number): DayPhase {
 }
 
 /** Тёмное время: фон почти чёрный, и подписи интерфейса поверх сцены становятся светлыми. */
+/**
+ * Темно ли в комнате настолько, что интерфейсу нужен светлый текст. Смотрим на яркость фона в этот час,
+ * а не на часы: вечером фон темнеет плавно, и светлый текст нужен раньше, чем наступит «ночь».
+ */
 export function isDarkHour(hour: number) {
-  return hour >= 20 || hour < 6;
+  const background = lightingAt(hour, probe).background.clone().convertLinearToSRGB();
+  return 0.299 * background.r + 0.587 * background.g + 0.114 * background.b < 0.6;
 }
 
 /** Освещение комнаты в какой-то момент суток. */
@@ -70,9 +75,10 @@ interface Keyframe {
  */
 const NIGHT: Omit<Keyframe, 'hour'> = {
   background: '#1c2233',
-  sky: '#566489',
-  ground: '#2a2731',
-  ambient: 0.55,
+  sky: '#62709a',
+  ground: '#2e2a35',
+  // С затенением в углах (AO) и виньеткой ночная комната темнее — рассеянного света чуть больше.
+  ambient: 0.75,
   sunColor: '#9fb3e8',
   sun: 0.5,
   from: [-4, 8, -3],
@@ -85,9 +91,9 @@ const DAY: Omit<Keyframe, 'hour'> = {
   background: '#f3e7da',
   sky: '#fff4e6',
   ground: '#b59b84',
-  ambient: 1.1,
+  ambient: 1,
   sunColor: '#fff1dc',
-  sun: 2.2,
+  sun: 2.4,
   from: [4, 9, 5],
   skyTop: '#6fb3e6',
   skyBottom: '#d3ebf7',
@@ -199,3 +205,6 @@ export function createLighting(): Lighting {
     daylight: 0,
   };
 }
+
+/** Для isDarkHour: чтобы не создавать объект на каждый вызов. */
+const probe = createLighting();

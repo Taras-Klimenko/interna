@@ -10,7 +10,7 @@ export type { Chapter, ParsedBook } from './types';
 export const MAX_BOOK_SIZE = 40 * 1024 * 1024;
 
 /** Форматы для выбора файла. На iPhone список не задаём: Safari не знает .fb2 и не даст его выбрать. */
-export const BOOK_ACCEPT = '.fb2,.epub,.zip,application/epub+zip,application/x-fictionbook+xml,application/zip';
+export { BOOK_ACCEPT } from './accept';
 
 /** Разбирает fb2, fb2.zip или epub. Формат узнаём по содержимому, а не по расширению. */
 export async function parseBook(file: Blob): Promise<ParsedBook> {

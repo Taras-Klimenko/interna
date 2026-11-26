@@ -50,11 +50,7 @@ export async function importBook(file: File): Promise<ImportedBook> {
   };
 }
 
-/** Удалить файл книги и обложку из хранилища (книгу убрали с полки). */
-export function forgetBookFiles(bookId: string) {
-  void bookFiles.remove(bookId).catch(() => undefined);
-  void coverFiles.remove(bookId).catch(() => undefined);
-}
+export { forgetBookFiles } from '../storage/files';
 
 /** Текст ошибки для пользователя. */
 export function importErrorText(error: unknown) {

@@ -63,3 +63,9 @@ export const coverFiles = fileStore('covers');
 export function requestPersistentStorage() {
   void navigator.storage?.persist?.().catch(() => undefined);
 }
+
+/** Удалить файл книги и обложку из хранилища (книгу убрали с полки). */
+export function forgetBookFiles(bookId: string) {
+  void bookFiles.remove(bookId).catch(() => undefined);
+  void coverFiles.remove(bookId).catch(() => undefined);
+}

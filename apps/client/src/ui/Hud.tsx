@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { SettingsPanel } from './SettingsPanel';
 import { useUiStore } from '../store/uiStore';
 import { PHASE_ICONS, PHASE_LABELS, phaseOf } from '../scene/timeOfDay';
 import { useRoomHour } from './useRoomHour';
@@ -20,6 +21,7 @@ export function Hud() {
   const setFirstPerson = useUiStore((s) => s.setFirstPerson);
   const chatOpen = useChatStore((s) => s.open);
   const chatUnread = useChatStore((s) => s.unread);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Без сервера (сборка без VITE_API_URL) разговаривать не через кого.
   const chatAvailable = useAccountStore((s) => s.status !== 'disabled');
 
@@ -58,14 +60,14 @@ export function Hud() {
       <div className="hud-toolbar" role="toolbar" aria-label="Камера">
         {!firstPerson && (
           <>
-            <button type="button" onClick={() => requestRotate(-1)} title="Повернуть влево (Q)">
+            <button type="button" className="hud-rotate" onClick={() => requestRotate(-1)} title="Повернуть влево (Q)">
               ⟲
             </button>
-            <button type="button" onClick={() => requestRotate(1)} title="Повернуть вправо (E)">
+            <button type="button" className="hud-rotate" onClick={() => requestRotate(1)} title="Повернуть вправо (E)">
               ⟳
             </button>
-            <span className="hud-sep" />
-            <button type="button" onClick={toggleGrid} aria-pressed={showGrid || editing} disabled={editing} title="Сетка (G)">
+            <span className="hud-sep hud-rotate" />
+            <button type="button" className="hud-grid" onClick={toggleGrid} aria-pressed={showGrid || editing} disabled={editing} title="Сетка (G)">
               Сетка
             </button>
           </>
@@ -105,6 +107,16 @@ export function Hud() {
           <span aria-hidden="true">{PHASE_ICONS[phase]}</span>
           <span className="hud-time-label">{timeMode === 'auto' ? 'Сейчас' : PHASE_LABELS[phase]}</span>
         </button>
+        <button
+          type="button"
+          className="hud-settings"
+          onClick={() => setSettingsOpen((open) => !open)}
+          aria-pressed={settingsOpen}
+          aria-label="Настройки: звук и графика"
+          title="Звук и графика"
+        >
+          ⚙
+        </button>
         <span className="hud-sep" />
         <button
           type="button"
@@ -119,6 +131,8 @@ export function Hud() {
           {editing ? 'Готово' : 'Обставить'}
         </button>
       </div>
+
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
 
       {editing ? (
         <>

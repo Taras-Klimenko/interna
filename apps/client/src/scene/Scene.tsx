@@ -8,6 +8,7 @@ import { CameraRig } from './CameraRig';
 import { FirstPersonRig } from './FirstPersonRig';
 import { useUiStore } from '../store/uiStore';
 import { DayLight } from './DayLight';
+import { Effects } from './Effects';
 import { Room } from './Room';
 import { FloorPicker } from './FloorPicker';
 import { PlacedObjectMesh } from './PlacedObjectMesh';
@@ -21,6 +22,7 @@ export function Scene() {
   return (
     <>
       <DayLight />
+      <Effects />
 
       {/* Вид от первого лица сам ловит клики по полу: вы идёте туда, а не персонаж. */}
       {firstPerson ? <FirstPersonRig /> : <CameraRig />}

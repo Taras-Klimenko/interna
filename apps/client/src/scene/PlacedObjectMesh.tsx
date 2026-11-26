@@ -216,7 +216,8 @@ function FurnitureModel({ url, look, shadeMaterial, castShadow = true }: { url: 
       // Подсветка выбора важнее свечения плафона: иначе не видно, что лампа выбрана.
       const glows = look.glow && !look.tint && material.name === shadeMaterial;
       material.emissive = new Color(look.tint ?? (glows ? SHADE_GLOW : '#000000'));
-      material.emissiveIntensity = look.tint ? look.tintIntensity : glows ? 0.9 : 0;
+      // Плафон включённой лампы ярче белого — его подхватывает свечение (Bloom в Effects).
+      material.emissiveIntensity = look.tint ? look.tintIntensity : glows ? 2.4 : 0;
       material.needsUpdate = true;
     }
   }, [root, materials, shadeMaterial, castShadow, look.ghost, look.glow, look.tint, look.tintIntensity]);

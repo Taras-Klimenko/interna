@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import type { Book } from '@interna/shared';
 import { CATALOG } from '../catalog/catalog';
-import { BOOK_ACCEPT } from '../books/parseBook';
-import { forgetBookFiles, importBook, importErrorText } from '../books/importBook';
+import { BOOK_ACCEPT } from '../books/accept';
+import { forgetBookFiles } from '../storage/files';
 import { coverFiles } from '../storage/files';
 import { useReaderStore } from '../store/readerStore';
 import { useBlobUrl } from './useBlobUrl';
@@ -66,6 +66,8 @@ export function ShelfPanel() {
     setImporting(true);
     let added = 0;
     try {
+      // Разбор fb2/epub (с распаковкой zip) грузится только сейчас — он нужен лишь при добавлении книг.
+      const { importBook, importErrorText } = await import('../books/importBook');
       for (const file of files) {
         if (books.length + added >= capacity) {
           notify('Шкаф заполнен');

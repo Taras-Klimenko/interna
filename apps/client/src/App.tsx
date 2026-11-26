@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { PerformanceMonitor } from '@react-three/drei';
+import { useGraphicsStore, useQualityTier } from './store/graphicsStore';
 import { Scene } from './scene/Scene';
 import { Hud } from './ui/Hud';
 import { CharacterPanel } from './ui/CharacterPanel';
@@ -8,7 +10,6 @@ import { ObjectCard } from './ui/ObjectCard';
 import { ShelfPanel } from './ui/ShelfPanel';
 import { MusicPanel } from './ui/MusicPanel';
 import { FramePanel } from './ui/FramePanel';
-import { Reader } from './ui/Reader';
 import { LoginScreen } from './ui/LoginScreen';
 import { ChatPanel } from './ui/ChatPanel';
 import { AwayCard } from './ui/AwayCard';
@@ -22,11 +23,26 @@ import { useWorldStore } from './store/worldStore';
 import { isDarkHour } from './scene/timeOfDay';
 import { useRoomHour } from './ui/useRoomHour';
 import { syncPlayerWithWorld } from './audio/player';
+import { startAmbience } from './audio/ambience';
 import { useEditorStore } from './store/editorStore';
 import { useInteractionStore } from './store/interactionStore';
 
+/** Через столько после запуска начинаем следить за частотой кадров (режим качества «Авто»). */
+const MONITOR_AFTER_MS = 6_000;
+
+/** Читалка вместе с разбором книг — отдельный кусок кода: грузится, когда открывают книгу. */
+const Reader = lazy(() => import('./ui/Reader').then((module) => ({ default: module.Reader })));
+
 export function App() {
   const editing = useEditorStore((s) => s.active);
+  const tier = useQualityTier();
+  const autoQuality = useGraphicsStore((s) => s.setting === 'auto');
+  // Первые секунды кадров мало из-за загрузки моделей — качество по ним не судим.
+  const [monitoring, setMonitoring] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setMonitoring(true), MONITOR_AFTER_MS);
+    return () => window.clearTimeout(id);
+  }, []);
   const dark = isDarkHour(useRoomHour());
   const reading = useReaderStore((s) => s.open !== null);
   const userId = useAccountStore((s) => (s.status === 'signed-in' ? (s.user?.id ?? null) : null));
@@ -58,6 +74,8 @@ export function App() {
 
   // Музыка останавливается, если колонку убрали; лишние файлы чистятся при запуске.
   useEffect(() => syncPlayerWithWorld(), []);
+  // Звуки комнаты: шаги, выключатель, полив, дождь — заработают после первого нажатия.
+  useEffect(() => startAmbience(), []);
 
   // Фото, которые больше не висят ни в одной рамке (рамку убрали, комнату сбросили), удаляем при запуске.
   useEffect(() => {
@@ -72,7 +90,20 @@ export function App() {
   return (
     <div className="app" data-dark={dark}>
       {/* Пока открыта книга, комнату не видно: не рисуем её, чтобы не тратить батарею. */}
-      <Canvas frameloop={reading ? 'never' : 'always'} shadows dpr={[1, 2]} camera={{ fov: 30, near: 0.1, far: 100, position: [7.5, 7.5, 7.5] }}>
+      <Canvas
+        frameloop={reading ? 'never' : 'always'}
+        shadows
+        dpr={tier === 'high' ? [1, 2] : tier === 'medium' ? [1, 1.5] : 1}
+        camera={{ fov: 30, near: 0.1, far: 100, position: [7.5, 7.5, 7.5] }}
+      >
+        {/* В режиме «Авто» качество подстраивается под устройство: мало кадров — эффекты попроще. */}
+        {autoQuality && monitoring && (
+          <PerformanceMonitor
+            onDecline={() => useGraphicsStore.getState().degrade()}
+            onIncline={() => useGraphicsStore.getState().improve()}
+            flipflops={3}
+          />
+        )}
         <Scene />
       </Canvas>
       <Hud />
@@ -89,7 +120,11 @@ export function App() {
         </>
       )}
       {!editing && <AwayCard />}
-      <Reader />
+      {reading && (
+        <Suspense fallback={null}>
+          <Reader />
+        </Suspense>
+      )}
       <LoginScreen />
     </div>
   );

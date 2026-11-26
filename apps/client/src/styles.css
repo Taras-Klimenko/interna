@@ -310,10 +310,29 @@ body,
   color: rgba(243, 231, 218, 0.72);
 }
 
+/* Виньетка затемняет углы, а вечером фон темнеет плавно: лёгкий ореол держит текст читаемым при любом свете. */
+.hud-brand,
+.hud-hint {
+  text-shadow: 0 0 8px rgba(255, 250, 244, 0.75), 0 0 2px rgba(255, 250, 244, 0.6);
+}
+
+.app[data-dark='true'] .hud-brand,
+.app[data-dark='true'] .hud-hint {
+  text-shadow: 0 0 8px rgba(20, 18, 28, 0.8), 0 0 2px rgba(20, 18, 28, 0.6);
+}
+
 .hud-toolbar .hud-time {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* На узком сенсорном экране комнату вращают пальцем, а сетка видна при расстановке — эти кнопки уступают место. */
+@media (max-width: 480px) and (pointer: coarse) {
+  .hud-toolbar .hud-rotate,
+  .hud-toolbar .hud-grid {
+    display: none;
+  }
 }
 
 @media (max-width: 420px) {
@@ -1703,5 +1722,60 @@ button {
 @media (max-width: 767px) {
   .away {
     top: 96px;
+  }
+}
+
+/* Настройки: звук и графика (над панелью внизу) */
+.settings {
+  position: absolute;
+  bottom: 104px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(300px, calc(100% - 24px));
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 24px rgba(74, 59, 49, 0.16);
+  font-size: 13px;
+  z-index: 3;
+}
+
+.settings section + section {
+  margin-top: 12px;
+}
+
+.settings-heading {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.settings-row input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.settings-note {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 767px) {
+  .settings {
+    bottom: 100px;
   }
 }
