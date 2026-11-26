@@ -2,9 +2,12 @@ import { create } from 'zustand';
 import { useCharacterStore } from '../store/characterStore';
 import { useWorldStore } from '../store/worldStore';
 import { WALK_CLIP } from '../character/assets';
+import { useUiStore } from '../store/uiStore';
+import { startFieldSounds, type AudioGraph } from './fieldSounds';
 
 /**
- * Звуки комнаты: шаги персонажа, щелчок выключателя, полив, дождь за окном (по желанию).
+ * Звуки комнаты: шаги персонажа, щелчок выключателя, полив, дождь за окном (по желанию). На прогулке —
+ * звуки поля (fieldSounds.ts).
  * Всё синтезируется на лету через Web Audio — никаких файлов. Музыка из колонки — отдельно (audio/player.ts).
  * Браузер разрешает звук только после первого нажатия, поэтому контекст создаётся по первому жесту.
  */
@@ -60,6 +63,11 @@ function noiseBuffer(context: AudioContext) {
     data[i] = last * 3.5;
   }
   return buffer;
+}
+
+/** Звуковой граф, если звук уже разблокирован (было первое нажатие). */
+function graph(): AudioGraph | null {
+  return ctx && master && noise ? { ctx, master, noise } : null;
 }
 
 function start() {
@@ -170,6 +178,18 @@ export function startAmbience() {
   window.addEventListener('pointerdown', unlock, { once: true });
   window.addEventListener('keydown', unlock, { once: true });
 
+  // На прогулке — звуки поля (ветер, птицы, сверчки, шорох травы), дома — тишина комнаты.
+  let stopField: (() => void) | null = null;
+  const syncPlace = (place: string) => {
+    if (place === 'field' && !stopField) stopField = startFieldSounds(graph);
+    if (place !== 'field' && stopField) {
+      stopField();
+      stopField = null;
+    }
+  };
+  syncPlace(useUiStore.getState().place);
+  const unsubscribePlace = useUiStore.subscribe((state) => syncPlace(state.place));
+
   const unsubscribeSettings = useSoundStore.subscribe((state) => {
     if (master && ctx) master.gain.setTargetAtTime(state.volume, ctx.currentTime, 0.05);
     syncRain();
@@ -207,6 +227,8 @@ export function startAmbience() {
   document.addEventListener('visibilitychange', onVisibility);
 
   return () => {
+    unsubscribePlace();
+    stopField?.();
     window.removeEventListener('pointerdown', unlock);
     window.removeEventListener('keydown', unlock);
     document.removeEventListener('visibilitychange', onVisibility);

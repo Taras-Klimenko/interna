@@ -335,6 +335,19 @@ body,
   }
 }
 
+/* Совсем узкий экран: кнопки панели плотнее, чтобы все поместились и на телефонах шириной 360 px. */
+@media (max-width: 420px) {
+  .hud-toolbar {
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .hud-toolbar button {
+    min-width: 40px;
+    padding: 0 8px;
+  }
+}
+
 @media (max-width: 420px) {
   .hud-time-label {
     display: none;

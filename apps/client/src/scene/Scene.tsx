@@ -12,12 +12,31 @@ import { Effects } from './Effects';
 import { Room } from './Room';
 import { FloorPicker } from './FloorPicker';
 import { PlacedObjectMesh } from './PlacedObjectMesh';
+import { FieldScene } from '../field/FieldScene';
 
 export function Scene() {
   const world = useWorldStore((s) => s.world);
   const editing = useEditorStore((s) => s.active);
   const draft = useEditorStore((s) => s.draft);
   const firstPerson = useUiStore((s) => s.firstPerson) && !editing;
+  const outside = useUiStore((s) => s.place === 'field');
+  const together = useUiStore((s) => s.walkTogether);
+
+  // На прогулке комнаты не видно: вокруг поле, рядом персонаж.
+  if (outside) {
+    return (
+      <>
+        <DayLight />
+        <Effects />
+        <FieldScene />
+        {together && (
+          <Suspense fallback={null}>
+            <SpeechBubble />
+          </Suspense>
+        )}
+      </>
+    );
+  }
 
   return (
     <>

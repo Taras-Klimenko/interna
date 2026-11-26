@@ -7,6 +7,7 @@ import { useChatStore } from '../store/chatStore';
 import { useCharacterStore } from '../store/characterStore';
 import { useEditorStore } from '../store/editorStore';
 import { useReaderStore } from '../store/readerStore';
+import { useUiStore } from '../store/uiStore';
 
 /**
  * Тихие минуты: пока вы в комнате и не разговариваете, персонаж раз в несколько минут сам решает,
@@ -76,7 +77,9 @@ export function startIdleLife() {
       !isBusy() &&
       !useEditorStore.getState().active &&
       !useReaderStore.getState().open;
-    if (!present || !quiet) return;
+    // Гуляете один — персонажа рядом нет, тихих минут тоже.
+    const alone = useUiStore.getState().place === 'field' && !useUiStore.getState().walkTogether;
+    if (!present || !quiet || alone) return;
     deciding = true;
     nextAt = now + nextDelay();
     void decideNow().finally(() => {

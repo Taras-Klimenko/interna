@@ -59,13 +59,17 @@ export function buildChatContext(): ChatContext {
     })),
   );
 
+  // На прогулке до вещей комнаты не дотянуться — действий с ними в разговоре нет (книги и музыку помнит).
+  const outside = useUiStore.getState().place === 'field';
   return {
     characterName: world.character.name.trim() || DEFAULT_CHARACTER_NAME,
     personality: world.character.personality,
     gender: world.character.appearance.body,
     hour: Math.floor(hourFor(useUiStore.getState().timeMode)) % 24,
     ownerInside: useUiStore.getState().firstPerson,
-    objects,
+    place: useUiStore.getState().place,
+    together: useUiStore.getState().place !== 'field' || useUiStore.getState().walkTogether,
+    objects: outside ? [] : objects,
     books,
     playlist: [...new Set(tracks.map((track) => track.title))],
     nowPlaying,

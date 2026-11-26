@@ -1,0 +1,137 @@
+{
+  "CommonTree_1": {
+    "kind": "tree",
+    "height": 5.27,
+    "radius": 1.72
+  },
+  "CommonTree_2": {
+    "kind": "tree",
+    "height": 5.55,
+    "radius": 1.67
+  },
+  "CommonTree_3": {
+    "kind": "tree",
+    "height": 6.43,
+    "radius": 1.48
+  },
+  "CommonTree_4": {
+    "kind": "tree",
+    "height": 6.44,
+    "radius": 1.34
+  },
+  "CommonTree_5": {
+    "kind": "tree",
+    "height": 5.07,
+    "radius": 1.58
+  },
+  "Pine_1": {
+    "kind": "tree",
+    "height": 5.31,
+    "radius": 1.85
+  },
+  "Pine_2": {
+    "kind": "tree",
+    "height": 5.36,
+    "radius": 2.15
+  },
+  "Pine_3": {
+    "kind": "tree",
+    "height": 5.37,
+    "radius": 1.5
+  },
+  "Pine_4": {
+    "kind": "tree",
+    "height": 6.5,
+    "radius": 1.89
+  },
+  "Pine_5": {
+    "kind": "tree",
+    "height": 5.94,
+    "radius": 2.25
+  },
+  "Bush_Common_Flowers": {
+    "kind": "bush",
+    "height": 0.74,
+    "radius": 0.54
+  },
+  "Flower_3_Group": {
+    "kind": "flower",
+    "height": 0.53,
+    "radius": 0.21
+  },
+  "Flower_4_Group": {
+    "kind": "flower",
+    "height": 0.58,
+    "radius": 0.21
+  },
+  "Flower_3_Single": {
+    "kind": "flower",
+    "height": 0.53,
+    "radius": 0.12
+  },
+  "Flower_4_Single": {
+    "kind": "flower",
+    "height": 0.57,
+    "radius": 0.13
+  },
+  "Fern_1": {
+    "kind": "plant",
+    "height": 0.31,
+    "radius": 0.57
+  },
+  "Clover_1": {
+    "kind": "plant",
+    "height": 0.32,
+    "radius": 0.11
+  },
+  "Clover_2": {
+    "kind": "plant",
+    "height": 0.35,
+    "radius": 0.12
+  },
+  "Plant_1": {
+    "kind": "plant",
+    "height": 0.44,
+    "radius": 0.31
+  },
+  "Plant_7": {
+    "kind": "plant",
+    "height": 0.15,
+    "radius": 0.31
+  },
+  "Mushroom_Common": {
+    "kind": "plant",
+    "height": 0.2,
+    "radius": 0.18
+  },
+  "Rock_Medium_1": {
+    "kind": "rock",
+    "height": 0.89,
+    "radius": 0.73
+  },
+  "Rock_Medium_2": {
+    "kind": "rock",
+    "height": 0.83,
+    "radius": 0.69
+  },
+  "Rock_Medium_3": {
+    "kind": "rock",
+    "height": 0.8,
+    "radius": 0.7
+  },
+  "Pebble_Round_1": {
+    "kind": "pebble",
+    "height": 0.09,
+    "radius": 0.25
+  },
+  "Pebble_Round_3": {
+    "kind": "pebble",
+    "height": 0.1,
+    "radius": 0.24
+  },
+  "Pebble_Square_2": {
+    "kind": "pebble",
+    "height": 0.14,
+    "radius": 0.2
+  }
+}

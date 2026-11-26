@@ -12,6 +12,7 @@ import { MusicPanel } from './ui/MusicPanel';
 import { FramePanel } from './ui/FramePanel';
 import { LoginScreen } from './ui/LoginScreen';
 import { ChatPanel } from './ui/ChatPanel';
+import { InteractionNotice } from './ui/Notice';
 import { AwayCard } from './ui/AwayCard';
 import { useAccountStore } from './store/accountStore';
 import { startWorldSync } from './api/worldSync';
@@ -25,6 +26,7 @@ import { useRoomHour } from './ui/useRoomHour';
 import { syncPlayerWithWorld } from './audio/player';
 import { startAmbience } from './audio/ambience';
 import { useEditorStore } from './store/editorStore';
+import { useUiStore } from './store/uiStore';
 import { useInteractionStore } from './store/interactionStore';
 
 /** Через столько после запуска начинаем следить за частотой кадров (режим качества «Авто»). */
@@ -35,6 +37,7 @@ const Reader = lazy(() => import('./ui/Reader').then((module) => ({ default: mod
 
 export function App() {
   const editing = useEditorStore((s) => s.active);
+  const outside = useUiStore((s) => s.place === 'field');
   const tier = useQualityTier();
   const autoQuality = useGraphicsStore((s) => s.setting === 'auto');
   // Первые секунды кадров мало из-за загрузки моделей — качество по ним не судим.
@@ -107,7 +110,13 @@ export function App() {
         <Scene />
       </Canvas>
       <Hud />
-      {editing ? (
+      {outside ? (
+        // На прогулке комнатных панелей нет — только разговор и уведомления.
+        <>
+          <ChatPanel />
+          <InteractionNotice />
+        </>
+      ) : editing ? (
         <EditorPanel />
       ) : (
         <>

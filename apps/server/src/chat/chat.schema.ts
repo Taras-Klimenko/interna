@@ -18,6 +18,10 @@ export const ChatContext = z.object({
   hour: z.number().int().min(0).max(23),
   /** Хозяин гуляет по комнате от первого лица. */
   ownerInside: z.boolean(),
+  /** Где вы с хозяином: в комнате или на прогулке в поле за домом. */
+  place: z.enum(['room', 'field']).default('room'),
+  /** На прогулке персонаж с хозяином (иначе остался дома, и они переписываются). */
+  together: z.boolean().default(true),
   objects: list(
     z.object({
       id: text(100),

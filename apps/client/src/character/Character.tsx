@@ -175,6 +175,7 @@ export function Character() {
       }
     }
     characterBody.x = group.position.x;
+    characterBody.y = 0;
     characterBody.z = group.position.z;
 
     // Поворот по кратчайшей дуге.

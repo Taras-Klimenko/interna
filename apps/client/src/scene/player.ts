@@ -20,8 +20,8 @@ export const player = {
   route: [] as { x: number; z: number }[],
 };
 
-/** Где стоит персонаж: пишет Character каждый кадр, читают ваши столкновения. */
-export const characterBody = { x: 0, z: 0 };
+/** Где стоит персонаж: пишет Character каждый кадр, читают ваши столкновения. y — высота земли (на прогулке). */
+export const characterBody = { x: 0, y: 0, z: 0 };
 
 /** Радиус «тела» игрока и персонажа для столкновений. */
 export const PLAYER_RADIUS = 0.18;

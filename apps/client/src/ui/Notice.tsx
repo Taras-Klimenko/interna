@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useInteractionStore } from '../store/interactionStore';
 
 /** Всплывающее сообщение на пару секунд. Новое сообщение (новый seq) показывается заново. */
 export function Notice({ notice }: { notice: { text: string; seq: number } | null }) {
@@ -17,4 +18,10 @@ export function Notice({ notice }: { notice: { text: string; seq: number } | nul
       {notice.text}
     </div>
   );
+}
+
+/** Общие уведомления (персонаж пошёл домой, комната загружена…) там, где нет карточки предмета, — например, на прогулке. */
+export function InteractionNotice() {
+  const notice = useInteractionStore((s) => s.notice);
+  return <Notice notice={notice} />;
 }

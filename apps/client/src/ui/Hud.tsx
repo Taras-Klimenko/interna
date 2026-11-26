@@ -7,6 +7,34 @@ import { useEditorStore } from '../store/editorStore';
 import { AccountBadge } from './AccountBadge';
 import { useChatStore } from '../store/chatStore';
 import { useAccountStore } from '../store/accountStore';
+import { useInteractionStore } from '../store/interactionStore';
+import { callCompanion, resetWalk } from '../field/fieldState';
+import { DEFAULT_CHARACTER_NAME, useWorldStore } from '../store/worldStore';
+
+/** Взять персонажа на прогулку или отпустить домой. Позвали посреди прогулки — он догоняет. */
+function toggleCompanion() {
+  const { walkTogether, setWalkTogether } = useUiStore.getState();
+  const { name, appearance } = useWorldStore.getState().world.character;
+  const who = name.trim() || DEFAULT_CHARACTER_NAME;
+  const female = appearance.body === 'female';
+  if (walkTogether) {
+    setWalkTogether(false);
+    useInteractionStore.getState().notify(`${who} ${female ? 'пошла' : 'пошёл'} домой — можно переписываться`);
+  } else {
+    callCompanion();
+    setWalkTogether(true);
+    useInteractionStore.getState().notify(`${who} догоняет вас`);
+  }
+}
+
+/** На прогулку: из любого режима комнаты — в поле за домом, у порога. */
+function goOutside() {
+  useEditorStore.getState().setActive(false);
+  useUiStore.getState().setFirstPerson(false);
+  useInteractionStore.getState().reset();
+  resetWalk();
+  useUiStore.getState().setPlace('field');
+}
 
 export function Hud() {
   const showGrid = useUiStore((s) => s.showGrid);
@@ -19,6 +47,9 @@ export function Hud() {
   const phase = phaseOf(useRoomHour());
   const firstPerson = useUiStore((s) => s.firstPerson) && !editing;
   const setFirstPerson = useUiStore((s) => s.setFirstPerson);
+  const outside = useUiStore((s) => s.place === 'field');
+  const walkTogether = useUiStore((s) => s.walkTogether);
+  const characterName = useWorldStore((s) => s.world.character.name.trim()) || DEFAULT_CHARACTER_NAME;
   const chatOpen = useChatStore((s) => s.open);
   const chatUnread = useChatStore((s) => s.unread);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -30,6 +61,9 @@ export function Hud() {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const key = e.code;
       const inside = useUiStore.getState().firstPerson;
+      const field = useUiStore.getState().place === 'field';
+      // На прогулке комнатные клавиши ни к чему: только время суток и разговор.
+      if (field && key !== 'KeyT' && key !== 'KeyC') return;
       // Изнутри Q/E и G ни к чему: камеры-диорамы и сетки там нет.
       if (key === 'KeyQ' && !inside) requestRotate(-1);
       else if (key === 'KeyE' && !inside) requestRotate(1);
@@ -58,7 +92,25 @@ export function Hud() {
       </header>
 
       <div className="hud-toolbar" role="toolbar" aria-label="Камера">
-        {!firstPerson && (
+        {outside && (
+          <button type="button" className="hud-inside" onClick={() => useUiStore.getState().setPlace('room')} title="Вернуться в комнату">
+            <span aria-hidden="true">⌂</span>
+            <span className="hud-time-label">Домой</span>
+          </button>
+        )}
+        {outside && (
+          <button
+            type="button"
+            className="hud-inside"
+            onClick={toggleCompanion}
+            aria-pressed={walkTogether}
+            title={walkTogether ? `${characterName} гуляет с вами — отпустить домой` : 'Позвать с собой на прогулку'}
+          >
+            <span aria-hidden="true">{walkTogether ? '👫' : '🚶'}</span>
+            <span className="hud-time-label">{walkTogether ? 'Вдвоём' : 'Один'}</span>
+          </button>
+        )}
+        {!firstPerson && !outside && (
           <>
             <button type="button" className="hud-rotate" onClick={() => requestRotate(-1)} title="Повернуть влево (Q)">
               ⟲
@@ -72,7 +124,13 @@ export function Hud() {
             </button>
           </>
         )}
-        {!editing && (
+        {!editing && !outside && (
+          <button type="button" className="hud-inside" onClick={goOutside} title="На прогулку в поле за домом">
+            <span aria-hidden="true">🌼</span>
+            <span className="hud-time-label">Гулять</span>
+          </button>
+        )}
+        {!editing && !outside && (
           <button
             type="button"
             className="hud-inside"
@@ -117,7 +175,8 @@ export function Hud() {
         >
           ⚙
         </button>
-        <span className="hud-sep" />
+        {!outside && <span className="hud-sep" />}
+        {!outside && (
         <button
           type="button"
           className="hud-mode"
@@ -130,11 +189,19 @@ export function Hud() {
         >
           {editing ? 'Готово' : 'Обставить'}
         </button>
+        )}
       </div>
 
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
 
-      {editing ? (
+      {outside ? (
+        <>
+          <p className="hud-hint hud-hint-desktop">
+            WASD или стрелки — идти · Shift — бегом · тяните мышью — смотреть · клик по земле — дойти туда · C — поговорить · T — время суток
+          </p>
+          <p className="hud-hint hud-hint-touch">Тап по земле — идти · потяните — осмотреться</p>
+        </>
+      ) : editing ? (
         <>
           <p className="hud-hint hud-hint-desktop">
             Выберите предмет в каталоге и кликните по полу · перетащите предмет, чтобы передвинуть · R — повернуть · Del — убрать · Esc — отмена

@@ -3,6 +3,8 @@ import { TIME_MODES, type TimeMode } from '../scene/timeOfDay';
 
 /** Выбранное время суток запоминаем в браузере: это настройка вида, а не часть мира. */
 const TIME_KEY = 'interna.time';
+/** Брать ли персонажа на прогулку — тоже запоминаем: следующая прогулка начнётся так же. */
+const TOGETHER_KEY = 'interna.walkTogether';
 
 function loadTimeMode(): TimeMode {
   try {
@@ -29,6 +31,12 @@ interface UiStore {
   /** Куда вы идёте после тапа по полу: для отметки на полу. */
   walkGoal: { x: number; z: number } | null;
   setWalkGoal: (goal: { x: number; z: number } | null) => void;
+  /** Где вы: в комнате или на прогулке в поле за домом. */
+  place: 'room' | 'field';
+  setPlace: (place: 'room' | 'field') => void;
+  /** Персонаж гуляет с вами (иначе он дома, а вы гуляете один). */
+  walkTogether: boolean;
+  setWalkTogether: (together: boolean) => void;
 }
 
 export const useUiStore = create<UiStore>()((set) => ({
@@ -41,6 +49,23 @@ export const useUiStore = create<UiStore>()((set) => ({
   setFirstPerson: (firstPerson) => set({ firstPerson, walkGoal: null }),
   walkGoal: null,
   setWalkGoal: (walkGoal) => set({ walkGoal }),
+  place: 'room',
+  setPlace: (place) => set({ place, walkGoal: null }),
+  walkTogether: (() => {
+    try {
+      return localStorage.getItem(TOGETHER_KEY) !== 'false';
+    } catch {
+      return true;
+    }
+  })(),
+  setWalkTogether: (walkTogether) => {
+    try {
+      localStorage.setItem(TOGETHER_KEY, String(walkTogether));
+    } catch {
+      // Не запомнится — не беда.
+    }
+    set({ walkTogether });
+  },
   cycleTimeMode: () =>
     set((s) => {
       const timeMode = TIME_MODES[(TIME_MODES.indexOf(s.timeMode) + 1) % TIME_MODES.length]!;

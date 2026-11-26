@@ -16,6 +16,7 @@
     "typecheck": "pnpm -r typecheck",
     "assets:characters": "node assets/scripts/build-characters.mjs",
     "assets:furniture": "node assets/scripts/build-furniture.mjs",
+    "assets:nature": "node assets/scripts/build-nature.mjs",
     "assets:inspect": "node assets/scripts/inspect.mjs"
   },
   "devDependencies": {

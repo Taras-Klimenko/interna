@@ -30,12 +30,12 @@ export function SpeechBubble() {
   }, [bubble]);
 
   useFrame(() => {
-    group.current?.position.set(characterBody.x, BUBBLE_HEIGHT, characterBody.z);
+    group.current?.position.set(characterBody.x, characterBody.y + BUBBLE_HEIGHT, characterBody.z);
   });
 
   if (!bubble) return null;
   return (
-    <group ref={group} position={[characterBody.x, BUBBLE_HEIGHT, characterBody.z]}>
+    <group ref={group} position={[characterBody.x, characterBody.y + BUBBLE_HEIGHT, characterBody.z]}>
       <Html center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
         <div className="speech-bubble" data-thinking={!bubble.text}>
           {bubble.text || <span className="speech-dots" aria-label="думает">•••</span>}

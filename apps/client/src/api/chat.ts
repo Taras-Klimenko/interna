@@ -7,6 +7,9 @@ export interface ChatContext {
   personality: string;
   gender: 'female' | 'male';
   hour: number;
+  place: 'room' | 'field';
+  /** На прогулке: персонаж с вами (иначе дома, и вы переписываетесь). */
+  together: boolean;
   ownerInside: boolean;
   objects: { id: string; name: string; state?: string; can: ('light' | 'water' | 'music' | 'books')[]; on?: boolean; tracks: string[] }[];
   books: { title: string; author: string; shelfId: string; note: string; percent?: number }[];

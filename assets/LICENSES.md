@@ -6,6 +6,7 @@
 | Universal Animation Library (Standard) | [Quaternius](https://quaternius.com/packs/universalanimationlibrary.html) | CC0 1.0 | `apps/client/public/models/characters/animations-ual1.glb` |
 | Universal Animation Library 2 (Standard) | [Quaternius](https://quaternius.com/packs/universalanimationlibrary2.html) | CC0 1.0 | `apps/client/public/models/characters/animations-ual2.glb` |
 | Ultimate House Interior Pack (June 2020) | [Quaternius](https://quaternius.com/packs/ultimatehomeinterior.html) | CC0 1.0 | `apps/client/public/models/furniture/*.glb` |
+| Stylized Nature MegaKit (Standard, July 2024) | [Quaternius](https://quaternius.com/packs/stylizednaturemegakit.html) | CC0 1.0 | `apps/client/public/models/nature/nature.glb` |
 
 Указывать авторство по CC0 не обязательно, но это вежливо.
 
@@ -23,5 +24,13 @@
 2. Распаковать из него папку `OBJ` в `assets/source/furniture/_unpacked/OBJ`.
 3. `pnpm assets:furniture`. Скрипт пишет GLB в `apps/client/public/models/furniture/` и размеры в `apps/client/src/catalog/furniture.generated.json`.
    Какие модели брать, задаётся списком `MODELS` в `assets/scripts/build-furniture.mjs`.
+
+Природа (прогулка по полю):
+
+1. Положить `Stylized Nature MegaKit[Standard].zip` в `assets/source/nature/`.
+2. Распаковать из него папку `glTF` в `assets/source/nature/_unpacked/glTF`.
+3. `pnpm assets:nature`. Скрипт собирает выбранные модели в один `apps/client/public/models/nature/nature.glb` (общие текстуры — один раз, в WebP) и пишет их размеры в `apps/client/src/field/nature.generated.json`.
+   - Какие модели брать и с каким масштабом, задаётся списком `MODELS` в `assets/scripts/build-nature.mjs`.
+   - Цвет вершин (`COLOR_0`, данные для шейдера ветра из набора) скрипт удаляет: three.js умножал бы на него прозрачность, и листва отсекалась бы целиком.
 
 Архивы и распакованные файлы в git не попадают (см. `.gitignore`), только собранные GLB.
