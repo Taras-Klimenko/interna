@@ -6,6 +6,7 @@ import { useInteractionStore } from '../store/interactionStore';
 import { useReaderStore } from '../store/readerStore';
 import { ACTION_ICONS, actionLabel, type RoomAction } from '../chat/actions';
 import { unlockAudio } from '../audio/player';
+import { MemoryView } from './MemoryView';
 
 /** Когда до дневного лимита остаётся столько сообщений, показываем счётчик. */
 const SHOW_REMAINING_BELOW = 10;
@@ -22,6 +23,8 @@ export function ChatPanel() {
   const account = useAccountStore((s) => s.status);
   const name = useWorldStore((s) => s.world.character.name);
   const [draft, setDraft] = useState('');
+  /** Вместо разговора — что персонаж помнит. */
+  const [showMemory, setShowMemory] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -40,7 +43,7 @@ export function ChatPanel() {
   useEffect(() => {
     const list = listRef.current;
     if (list) list.scrollTop = list.scrollHeight;
-  }, [messages, pending, open]);
+  }, [messages, pending, open, showMemory]);
 
   useEffect(() => {
     if (!open) return;
@@ -79,7 +82,8 @@ export function ChatPanel() {
   };
 
   const onClear = () => {
-    if (window.confirm(`Начать разговор заново? ${characterName} забудет, о чём вы говорили.`)) void useChatStore.getState().clear();
+    if (window.confirm(`Начать разговор заново? ${characterName} забудет, о чём вы говорили. То, что запомнено о вас, и дневник останутся — их можно посмотреть в «Памяти».`))
+      void useChatStore.getState().clear();
   };
 
   return (
@@ -87,10 +91,24 @@ export function ChatPanel() {
       <header className="sheet-header">
         <div>
           <h2 className="sheet-title">{characterName}</h2>
-          <p className="sheet-subtitle">{pending ? (pending.answer ? 'отвечает…' : 'думает…') : 'живёт в этой комнате'}</p>
+          <p className="sheet-subtitle">
+            {showMemory ? 'память и дневник' : pending ? (pending.answer ? 'отвечает…' : 'думает…') : 'живёт в этой комнате'}
+          </p>
         </div>
         <div className="chat-actions">
-          {status === 'ready' && messages.length > 0 && (
+          {status === 'ready' && (
+            <button
+              type="button"
+              className="sheet-close"
+              onClick={() => setShowMemory((shown) => !shown)}
+              aria-pressed={showMemory}
+              title={showMemory ? 'К разговору' : 'Память'}
+              aria-label={showMemory ? 'Вернуться к разговору' : 'Что помнит персонаж'}
+            >
+              {showMemory ? '💬' : '🧠'}
+            </button>
+          )}
+          {status === 'ready' && !showMemory && messages.length > 0 && (
             <button type="button" className="sheet-close" onClick={onClear} title="Начать заново" aria-label="Начать разговор заново">
               ⟲
             </button>
@@ -101,7 +119,11 @@ export function ChatPanel() {
         </div>
       </header>
 
-      {account !== 'signed-in' ? (
+      {account === 'signed-in' && showMemory ? (
+        <div className="sheet-body">
+          <MemoryView name={characterName} />
+        </div>
+      ) : account !== 'signed-in' ? (
         <div className="sheet-body">
           <p className="sheet-empty">
             Чтобы поговорить, нужно войти: персонаж отвечает через сервер, а без входа комната живёт только в этом браузере.

@@ -59,6 +59,29 @@ export const loadChat = (token: string) => api<ChatState>('/chat', { token });
 
 export const clearChat = (token: string) => api<{ ok: boolean }>('/chat', { method: 'DELETE', token });
 
+/** «Пока тебя не было…»: что персонаж делал без хозяина, что изменилось в комнате и приветствие. */
+export interface AwayStory {
+  moments: string[];
+  actions: RoomAction[];
+  asked: ChatMessage;
+  message: ChatMessage;
+}
+
+export const sendAway = (token: string, hoursAway: number, context: ChatContext) =>
+  api<AwayStory>('/chat/away', { method: 'POST', token, body: { hoursAway, context } });
+
+export interface MemoryItem {
+  id: string;
+  text: string;
+  createdAt: string;
+}
+
+/** Что персонаж помнит: факты о хозяине и свой дневник. */
+export const loadMemory = (token: string) => api<{ facts: MemoryItem[]; diary: MemoryItem[] }>('/memory', { token });
+export const forgetFact = (token: string, id: string) =>
+  api<{ ok: boolean }>(`/memory/facts/${encodeURIComponent(id)}`, { method: 'DELETE', token });
+export const forgetAllFacts = (token: string) => api<{ ok: boolean }>('/memory/facts', { method: 'DELETE', token });
+
 /**
  * Отправить реплику и читать ответ по мере того, как персонаж его «пишет» (Server-Sent Events).
  * onDelta получает кусочки ответа, onAction — действия персонажа в комнате (выполнять сразу);

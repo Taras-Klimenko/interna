@@ -22,6 +22,7 @@ model User {
   world     World?
   chat      ChatMessage[]
   llmCalls  LlmCall[]
+  memories  Memory[]
 }
 
 /// Инвайт-код. Он же ключ для входа с другого устройства: тот же код — тот же пользователь.
@@ -95,4 +96,20 @@ model LlmCall {
   createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+/// Долгая память персонажа. fact — что он знает о хозяине; diary — его дневник;
+/// summary — краткое содержание старых разговоров (одна запись на пользователя).
+model Memory {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        String
+  text        String
+  /// Для summary: до какой реплики разговор уже пересказан.
+  coversUntil DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, kind, createdAt])
 }

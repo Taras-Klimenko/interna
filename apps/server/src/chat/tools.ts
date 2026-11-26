@@ -14,7 +14,15 @@ export type RoomAction =
   | { type: 'music'; objectId: string; track?: string }
   | { type: 'stopMusic'; objectId: string }
   | { type: 'goTo'; objectId: string }
-  | { type: 'takeBook'; objectId: string; title: string };
+  | { type: 'takeBook'; objectId: string; title: string }
+  // Не действия в комнате, а записи в память персонажа: сервер сохраняет их сам, клиент только показывает.
+  | { type: 'remember'; text: string }
+  | { type: 'diary'; text: string };
+
+/** Действие в комнате (выполняет клиент), а не запись в память. */
+export function isRoomAction(action: RoomAction) {
+  return action.type !== 'remember' && action.type !== 'diary';
+}
 
 export interface ChatTool {
   name: string;
@@ -22,7 +30,19 @@ export interface ChatTool {
   /** JSON Schema параметров. */
   parameters: Record<string, unknown>;
   /** Проверить аргументы и решить, что делать. result — ответ инструмента для модели. */
-  run: (args: unknown) => { result: string; action?: RoomAction };
+  run: (args: unknown) => { result: string; action?: RoomAction; moment?: string };
+}
+
+/** Какие инструменты дать модели сверх действий в комнате. */
+export interface ToolOptions {
+  /** Только эти действия в комнате (по имени инструмента); по умолчанию — все. */
+  only?: string[];
+  /** remember — запомнить факт о хозяине. */
+  remember?: boolean;
+  /** write_diary — запись в дневник. */
+  diary?: boolean;
+  /** moment — момент для карточки «Пока тебя не было…». */
+  moments?: boolean;
 }
 
 /** Больше действий за один ответ не нужно: персонаж выполняет их по очереди, а хозяин ждёт. */
@@ -42,7 +62,7 @@ function refuse(error: z.ZodError) {
   return { result: `Не получилось: неверное значение «${field}» — такого предмета или варианта в комнате нет. Ничего не сделано.` };
 }
 
-export function buildTools(context: ChatContext): ChatTool[] {
+export function buildTools(context: ChatContext, options: ToolOptions = {}): ChatTool[] {
   const tools: ChatTool[] = [];
   const named = new Map(context.objects.map((object) => [object.id, object.name]));
   const lights = context.objects.filter((object) => object.can.includes('light'));
@@ -153,13 +173,55 @@ export function buildTools(context: ChatContext): ChatTool[] {
     });
   }
 
-  return tools;
+  const roomTools = options.only ? tools.filter((tool) => options.only!.includes(tool.name)) : tools;
+
+  const Note = z.object({ text: z.string().trim().min(1).max(300) });
+  if (options.remember) {
+    roomTools.push({
+      name: 'remember',
+      description:
+        'Запомнить важный факт о хозяине надолго: имя, что любит и не любит, близкие люди, работа, планы, важные события. Одно короткое утверждение. Не запоминай то, что уже есть в памяти, и мелочи разговора.',
+      parameters: schema({ text: { type: 'string', description: 'Факт одной фразой, например «Хозяина зовут Тарас»' } }, ['text']),
+      run: (args) => {
+        const parsed = Note.safeParse(args);
+        if (!parsed.success) return { result: 'Не получилось: нужен короткий текст факта. Ничего не записано.' };
+        return { result: 'Записано в память.', action: { type: 'remember', text: parsed.data.text } };
+      },
+    });
+  }
+  if (options.diary) {
+    roomTools.push({
+      name: 'write_diary',
+      description: 'Записать в свой дневник: 1–3 предложения от первого лица о том, что было, что думаешь и чувствуешь. Хозяин может его читать.',
+      parameters: schema({ text: { type: 'string' } }, ['text']),
+      run: (args) => {
+        const parsed = Note.safeParse(args);
+        if (!parsed.success) return { result: 'Не получилось: нужен текст записи. Ничего не записано.' };
+        return { result: 'Записано в дневник.', action: { type: 'diary', text: parsed.data.text } };
+      },
+    });
+  }
+  if (options.moments) {
+    roomTools.push({
+      name: 'moment',
+      description: 'Один момент из того, что было, пока хозяина не было: короткая фраза от первого лица в прошедшем времени.',
+      parameters: schema({ text: { type: 'string' } }, ['text']),
+      run: (args) => {
+        const parsed = Note.safeParse(args);
+        if (!parsed.success) return { result: 'Не получилось: нужен текст момента.' };
+        return { result: 'Хорошо.', moment: parsed.data.text };
+      },
+    });
+  }
+  return roomTools;
 }
 
 /** Выполнить вызов инструмента: неизвестное имя или лишние действия — ответ модели, а не ошибка. */
 export function runTool(tools: ChatTool[], name: string, args: unknown, actionsSoFar: number) {
   const tool = tools.find((item) => item.name === name);
   if (!tool) return { result: `Такого действия нет: ${name}. Ничего не сделано.` };
-  if (actionsSoFar >= MAX_ACTIONS_PER_REPLY) return { result: 'На этот раз хватит дел — остальное потом. Ничего не сделано.' };
+  // Лимит — только на дела в комнате: запомнить факт или записать в дневник можно и сверх него.
+  const memoryTool = tool.name === 'remember' || tool.name === 'write_diary' || tool.name === 'moment';
+  if (!memoryTool && actionsSoFar >= MAX_ACTIONS_PER_REPLY) return { result: 'На этот раз хватит дел — остальное потом. Ничего не сделано.' };
   return tool.run(args);
 }

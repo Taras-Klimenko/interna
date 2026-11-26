@@ -7,8 +7,9 @@ import { useReaderStore } from '../store/readerStore';
 import { useChatStore } from '../store/chatStore';
 
 /**
- * Замечаем, что произошло в комнате, и просим персонажа откликнуться: хозяин вернулся после перерыва,
- * поставил книгу, повесил фото, добавил трек, обставил комнату или давно молчит.
+ * Замечаем, что произошло в комнате, и просим персонажа откликнуться: хозяин поставил книгу, повесил фото,
+ * добавил трек, обставил комнату или давно молчит. Возвращение после перерыва — отдельный рассказ
+ * «Пока тебя не было…» (chatStore.away).
  * События за несколько секунд собираются в одну реакцию; сервер ещё и сам не даёт реагировать чаще раза в минуту.
  */
 
@@ -120,8 +121,11 @@ export function startRoomEvents(userId: string) {
   const checkVisit = () => {
     const lastSeen = Number(localStorage.getItem(lastSeenKey) ?? 0);
     const hours = (Date.now() - lastSeen) / 3_600_000;
-    if (lastSeen > 0 && hours >= VISIT_GAP_HOURS) add({ type: 'visit', hoursAway: Math.round(hours * 10) / 10 });
     markSeen();
+    if (lastSeen <= 0) return;
+    // Без хозяина растения подсыхают: полить их — повод и для него, и для персонажа.
+    if (hours > 0.25) useWorldStore.getState().dryPlants(hours);
+    if (hours >= VISIT_GAP_HOURS) void useChatStore.getState().away(Math.round(hours * 10) / 10);
   };
   const markSeen = () => {
     try {

@@ -7,6 +7,11 @@ import { useChatStore } from '../store/chatStore';
 
 /** Над головой персонажа (рост модели около 1,7 м). */
 const BUBBLE_HEIGHT = 2.05;
+/**
+ * Реплика видна хотя бы столько после появления: при загрузке страницы персонаж (и реплика вместе с ним)
+ * появляется, только когда догрузятся модели, — а срок реплики за это время мог почти истечь.
+ */
+const MIN_VISIBLE_MS = 4_000;
 
 /** Реплика персонажа над его головой: пока он отвечает и ещё несколько секунд после. */
 export function SpeechBubble() {
@@ -20,7 +25,7 @@ export function SpeechBubble() {
     const id = window.setTimeout(() => {
       if (useChatStore.getState().bubble === bubble) useChatStore.setState({ bubble: null });
       rerender((n) => n + 1);
-    }, Math.max(0, bubble.until - Date.now()));
+    }, Math.max(MIN_VISIBLE_MS, bubble.until - Date.now()));
     return () => window.clearTimeout(id);
   }, [bubble]);
 

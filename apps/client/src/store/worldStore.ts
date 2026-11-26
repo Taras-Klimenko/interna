@@ -4,6 +4,7 @@ import { immer } from 'zustand/middleware/immer';
 import type { Book, CharacterAppearance, ReadingProgress, GridPos, Photo, PlacedObject, Rotation, Track, World } from '@interna/shared';
 import { DEFAULT_PERSONALITY, PERSONALITY_MAX } from '../character/personalities';
 import { buildOccupancy, nearestWalkable } from '../character/pathfinding';
+import { CATALOG } from '../catalog/catalog';
 
 /** Стартовая расстановка: её же возвращает кнопка «Сбросить комнату». */
 const initialObjects: PlacedObject[] = [
@@ -25,6 +26,9 @@ const initialObjects: PlacedObject[] = [
   // Окно над комодом.
   { id: 'o13', defId: 'window', pos: { x: 7, z: 0 }, rotation: 0, state: {} },
 ];
+
+/** За столько часов без полива растение пересыхает полностью. */
+const PLANT_DRY_HOURS = 72;
 
 /** Имя персонажа по умолчанию; его можно поменять в панели персонажа. */
 export const DEFAULT_CHARACTER_NAME = 'Ева';
@@ -83,6 +87,8 @@ interface WorldStore {
   setRoomStyle: (patch: { floor?: string; wall?: string }) => void;
   setLight: (id: string, on: boolean) => void;
   water: (id: string) => void;
+  /** Прошло столько часов — растения подсохли (полностью — примерно за три дня). */
+  dryPlants: (hours: number) => void;
   /** Книга из файла приходит со своим id: под ним файл уже лежит в хранилище. */
   addBook: (objectId: string, book: Pick<Book, 'title' | 'author' | 'note'> & Partial<Pick<Book, 'id' | 'file' | 'color'>>) => void;
   removeBook: (objectId: string, bookId: string) => void;
@@ -166,6 +172,14 @@ export const useWorldStore = create<WorldStore>()(
         set((s) => {
           const object = s.world.objects.find((o) => o.id === id);
           if (object) object.state.needs = { water: 1 };
+        }),
+      dryPlants: (hours) =>
+        set((s) => {
+          for (const object of s.world.objects) {
+            if (!CATALOG[object.defId]?.components.some((c) => c.type === 'needs')) continue;
+            const water = object.state.needs?.water ?? 1;
+            object.state.needs = { water: Math.max(0, water - hours / PLANT_DRY_HOURS) };
+          }
         }),
       addBook: (objectId, book) =>
         set((s) => {

@@ -1604,3 +1604,104 @@ button {
   background: #d9534f;
   box-shadow: 0 0 0 2px var(--panel);
 }
+
+/* «Пока тебя не было…» — карточка сверху по центру */
+.away {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100% - 32px));
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 24px rgba(74, 59, 49, 0.16);
+  font-size: 13px;
+  z-index: 3;
+}
+
+.away-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.away-title {
+  margin: 0;
+  font-size: 16px;
+  font-style: italic;
+}
+
+.away-subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.away-list {
+  margin: 10px 0 0;
+  padding: 0 0 0 18px;
+  line-height: 1.45;
+}
+
+/* Память персонажа в панели разговора */
+.memory section + section {
+  margin-top: 16px;
+}
+
+.memory-heading {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+.memory-facts,
+.memory-diary {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.memory-facts li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.memory-diary li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--panel-border);
+  line-height: 1.4;
+}
+
+.memory-date {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.memory-forget-all {
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #a4473a;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+@media (max-width: 767px) {
+  .away {
+    top: 96px;
+  }
+}

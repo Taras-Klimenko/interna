@@ -11,6 +11,7 @@ import { FramePanel } from './ui/FramePanel';
 import { Reader } from './ui/Reader';
 import { LoginScreen } from './ui/LoginScreen';
 import { ChatPanel } from './ui/ChatPanel';
+import { AwayCard } from './ui/AwayCard';
 import { useAccountStore } from './store/accountStore';
 import { startWorldSync } from './api/worldSync';
 import { startRoomEvents } from './chat/events';
@@ -87,6 +88,7 @@ export function App() {
           <ChatPanel />
         </>
       )}
+      {!editing && <AwayCard />}
       <Reader />
       <LoginScreen />
     </div>

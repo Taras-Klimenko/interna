@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import { ChatError, clearChat, loadChat, sendChat, sendEvent, type ChatDone, type ChatMessage, type RoomEvent } from '../api/chat';
+import { ChatError, clearChat, loadChat, sendAway, sendChat, sendEvent, type ChatDone, type ChatMessage, type RoomEvent } from '../api/chat';
 import { ApiError, OfflineError } from '../api/http';
 import { buildChatContext } from '../chat/context';
-import { performRoomAction, type RoomAction } from '../chat/actions';
+import { applyRoomActionNow, performRoomAction, type RoomAction } from '../chat/actions';
 import { useAccountStore } from './accountStore';
 import { useCharacterStore } from './characterStore';
 import { useInteractionStore } from './interactionStore';
@@ -34,6 +34,8 @@ interface ChatStore {
   bubble: { text: string; until: number } | null;
   /** Персонаж сказал что-то, пока чат был закрыт: точка на кнопке «Поговорить». */
   unread: boolean;
+  /** Карточка «Пока тебя не было…». */
+  awayStory: { moments: string[]; hoursAway: number } | null;
   /** Для какого пользователя загружена история: после смены аккаунта грузим заново. */
   userId: string | null;
   /** Загрузить историю (если ещё не загружена). */
@@ -45,6 +47,9 @@ interface ChatStore {
   /** Что-то произошло в комнате — персонаж откликается сам. label — заметка в чате, пока ждём ответ. */
   react: (events: RoomEvent[], label: string) => Promise<boolean>;
   clear: () => Promise<void>;
+  /** Хозяин вернулся после перерыва: персонаж рассказывает, что было. false — не получилось (или рано). */
+  away: (hoursAway: number) => Promise<boolean>;
+  closeAwayStory: () => void;
 }
 
 let controller: AbortController | null = null;
@@ -131,6 +136,7 @@ export const useChatStore = create<ChatStore>()((set, get) => {
     limit: 0,
     bubble: null,
     unread: false,
+    awayStory: null,
     userId: null,
 
     ensureLoaded: () => {
@@ -179,6 +185,31 @@ export const useChatStore = create<ChatStore>()((set, get) => {
       );
     },
 
+    away: async (hoursAway) => {
+      const { token } = useAccountStore.getState();
+      await get().ensureLoaded();
+      if (!token || get().pending || get().status !== 'ready') return false;
+      set({ bubble: { text: '', until: Infinity } });
+      try {
+        const story = await sendAway(token, hoursAway, buildChatContext());
+        // Что изменилось в комнате без хозяина — сразу, без прогулки персонажа.
+        for (const action of story.actions) applyRoomActionNow(action);
+        set((s) => ({
+          messages: [...s.messages, story.asked, story.message],
+          bubble: { text: story.message.text, until: Date.now() + bubbleMs(story.message.text) },
+          awayStory: story.moments.length > 0 ? { moments: story.moments, hoursAway } : null,
+          unread: s.unread || !s.open,
+        }));
+        return true;
+      } catch {
+        // Рано (уже рассказывал), нет связи — ничего страшного: без рассказа комната та же.
+        set({ bubble: null });
+        return false;
+      }
+    },
+
+    closeAwayStory: () => set({ awayStory: null }),
+
     clear: async () => {
       const { token } = useAccountStore.getState();
       if (!token) return;
@@ -197,6 +228,6 @@ export const useChatStore = create<ChatStore>()((set, get) => {
 useAccountStore.subscribe((state, previous) => {
   if (state.status !== 'signed-in' && previous.status === 'signed-in') {
     controller?.abort();
-    useChatStore.setState({ status: 'idle', messages: [], pending: null, userId: null, bubble: null, error: null, unread: false });
+    useChatStore.setState({ status: 'idle', messages: [], pending: null, userId: null, bubble: null, error: null, unread: false, awayStory: null });
   }
 });

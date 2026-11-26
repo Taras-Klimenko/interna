@@ -14,6 +14,8 @@ const EVENT_GAP_MS = 60_000;
 const HOUR_MS = 60 * 60 * 1000;
 /** Решения «чем заняться» не чаще, чем раз в столько. */
 const IDLE_GAP_MS = 3 * 60_000;
+/** «Пока тебя не было…» — не чаще, чем раз в столько (вкладку могли открыть на двух устройствах). */
+const AWAY_GAP_MS = 3 * HOUR_MS;
 
 export type MessageKind = 'message' | 'event';
 
@@ -105,6 +107,16 @@ export class ChatService {
     ]);
     if (count >= this.idleHourlyLimit) return false;
     return !last || Date.now() - last.createdAt.getTime() >= IDLE_GAP_MS;
+  }
+
+  /** Рассказ «Пока тебя не было…» — не чаще раза в AWAY_GAP_MS. */
+  async awayAllowed(userId: string) {
+    const last = await this.prisma.llmCall.findFirst({
+      where: { userId, kind: 'away', error: null },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+    return !last || Date.now() - last.createdAt.getTime() >= AWAY_GAP_MS;
   }
 
   tryLock(userId: string) {
