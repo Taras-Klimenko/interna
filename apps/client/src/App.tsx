@@ -14,6 +14,8 @@ import { LoginScreen } from './ui/LoginScreen';
 import { ChatPanel } from './ui/ChatPanel';
 import { InteractionNotice } from './ui/Notice';
 import { AwayCard } from './ui/AwayCard';
+import { Onboarding } from './ui/Onboarding';
+import { CharacterEditor } from './ui/CharacterEditor';
 import { useAccountStore } from './store/accountStore';
 import { startWorldSync } from './api/worldSync';
 import { startRoomEvents } from './chat/events';
@@ -48,6 +50,10 @@ export function App() {
   }, []);
   const dark = isDarkHour(useRoomHour());
   const reading = useReaderStore((s) => s.open !== null);
+  const covered = useUiStore((s) => s.roomCovered);
+  const appearanceEditor = useUiStore((s) => s.appearanceEditor);
+  // Пока идёт знакомство, обычного интерфейса нет: только комната и шаги знакомства.
+  const onboarding = useWorldStore((s) => s.world.onboarded === false);
   const userId = useAccountStore((s) => (s.status === 'signed-in' ? (s.user?.id ?? null) : null));
   const token = useAccountStore((s) => s.token);
 
@@ -92,9 +98,9 @@ export function App() {
 
   return (
     <div className="app" data-dark={dark}>
-      {/* Пока открыта книга, комнату не видно: не рисуем её, чтобы не тратить батарею. */}
+      {/* Пока открыта книга или редактор внешности, комнату не видно: не рисуем её, чтобы не тратить батарею. */}
       <Canvas
-        frameloop={reading ? 'never' : 'always'}
+        frameloop={reading || covered ? 'never' : 'always'}
         shadows
         dpr={tier === 'high' ? [1, 2] : tier === 'medium' ? [1, 1.5] : 1}
         camera={{ fov: 30, near: 0.1, far: 100, position: [7.5, 7.5, 7.5] }}
@@ -109,8 +115,21 @@ export function App() {
         )}
         <Scene />
       </Canvas>
-      <Hud />
-      {outside ? (
+      {onboarding ? (
+        <Onboarding />
+      ) : appearanceEditor ? (
+        <CharacterEditor
+          title="Внешность"
+          footer={
+            <button type="button" className="book-submit" onClick={() => useUiStore.getState().setAppearanceEditor(false)}>
+              Готово
+            </button>
+          }
+        />
+      ) : (
+        <Hud />
+      )}
+      {onboarding || appearanceEditor ? null : outside ? (
         // На прогулке комнатных панелей нет — только разговор и уведомления.
         <>
           <ChatPanel />
@@ -128,7 +147,7 @@ export function App() {
           <ChatPanel />
         </>
       )}
-      {!editing && <AwayCard />}
+      {!editing && !onboarding && <AwayCard />}
       {reading && (
         <Suspense fallback={null}>
           <Reader />

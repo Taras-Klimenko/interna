@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { VoiceSettings } from './VoiceSettings';
 import { useSoundStore } from '../audio/ambience';
 import { QUALITY_LABELS, useGraphicsStore, useQualityTier, type QualitySetting } from '../store/graphicsStore';
 
@@ -50,6 +51,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         </label>
         <p className="settings-note">Шаги, выключатель, полив. Музыка из колонки — отдельно.</p>
       </section>
+      <VoiceSettings />
       <section>
         <h3 className="settings-heading">Графика</h3>
         <div className="chip-row">

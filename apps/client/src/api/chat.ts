@@ -45,7 +45,8 @@ export type RoomEvent =
   | { type: 'newPhoto'; caption: string }
   | { type: 'newTracks'; titles: string[] }
   | { type: 'newObjects'; names: string[] }
-  | { type: 'silence'; minutes: number };
+  | { type: 'silence'; minutes: number }
+  | { type: 'meeting' };
 
 export interface ChatDone {
   /** Сохранённая реплика хозяина (или событие). */

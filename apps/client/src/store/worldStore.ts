@@ -4,28 +4,11 @@ import { immer } from 'zustand/middleware/immer';
 import type { Book, CharacterAppearance, ReadingProgress, GridPos, Photo, PlacedObject, Rotation, Track, World } from '@interna/shared';
 import { DEFAULT_PERSONALITY, PERSONALITY_MAX } from '../character/personalities';
 import { buildOccupancy, nearestWalkable } from '../character/pathfinding';
+import { DEFAULT_TEMPLATE, ROOM_TEMPLATES } from './roomTemplates';
 import { CATALOG } from '../catalog/catalog';
 
-/** Стартовая расстановка: её же возвращает кнопка «Сбросить комнату». */
-const initialObjects: PlacedObject[] = [
-  // Вдоль задней стены (z = 0): кровать изголовьем к стене, тумбочка, растение, шкаф, колонка, комод.
-  { id: 'o1', defId: 'bed', pos: { x: 0, z: 0 }, rotation: 0, state: {} },
-  { id: 'o2', defId: 'nightstand', pos: { x: 2, z: 0 }, rotation: 0, state: {} },
-  { id: 'o3', defId: 'plant', pos: { x: 3, z: 0 }, rotation: 0, state: { needs: { water: 0.6 } } },
-  { id: 'o4', defId: 'bookshelf', pos: { x: 4, z: 0 }, rotation: 0, state: {} },
-  { id: 'o5', defId: 'speaker', pos: { x: 6, z: 0 }, rotation: 0, state: {} },
-  { id: 'o6', defId: 'dresser', pos: { x: 7, z: 0 }, rotation: 0, state: {} },
-  // Гостиная зона: диван у левой стены лицом в комнату, ковёр, кресло напротив, торшер и куст в углу.
-  { id: 'o7', defId: 'sofa', pos: { x: 0, z: 5 }, rotation: 270, state: {} },
-  { id: 'o8', defId: 'rugRound', pos: { x: 3, z: 5 }, rotation: 0, state: {} },
-  { id: 'o9', defId: 'armchair', pos: { x: 7, z: 6 }, rotation: 90, state: {} },
-  { id: 'o10', defId: 'floorLamp', pos: { x: 9, z: 5 }, rotation: 0, state: { light: { on: true } } },
-  { id: 'o11', defId: 'plantBush', pos: { x: 9, z: 9 }, rotation: 0, state: {} },
-  // Пустая рамка над тумбочкой: ждёт ваше фото.
-  { id: 'o12', defId: 'photoFrame', pos: { x: 2, z: 0 }, rotation: 0, state: {} },
-  // Окно над комодом.
-  { id: 'o13', defId: 'window', pos: { x: 7, z: 0 }, rotation: 0, state: {} },
-];
+/** Стартовая расстановка: её же возвращает кнопка «Сбросить комнату» (если шаблон не выбран). */
+const initialObjects: PlacedObject[] = DEFAULT_TEMPLATE.objects;
 
 /** За столько часов без полива растение пересыхает полностью. */
 const PLANT_DRY_HOURS = 72;
@@ -38,8 +21,10 @@ const OLD_DEFAULT_NAMES = ['Тест', 'Саша'];
 /**
  * Мир из старой версии (из браузера или с сервера) — к нынешнему виду. Срабатывает один раз:
  * у старого мира нет характера, а после обновления он есть, и имя больше не трогаем.
+ * Миры из версий до знакомства (онбординга) уже обжиты — знакомство им не показываем.
  */
 function upgradeWorld(world: World): World {
+  if (world.onboarded === undefined) world.onboarded = true;
   const character = world.character as World['character'] & { personality?: string };
   if (typeof character.personality !== 'string') {
     character.personality = DEFAULT_PERSONALITY;
@@ -48,11 +33,12 @@ function upgradeWorld(world: World): World {
   return world;
 }
 
-/** Стартовый мир, пока нет онбординга. */
+/** Стартовый мир нового человека: знакомство (онбординг) ещё впереди. */
 const initialWorld: World = {
   id: 'local',
-  room: { size: { w: 10, h: 10 }, floor: 'oak', wall: 'cream' },
+  room: { size: { w: 10, h: 10 }, floor: DEFAULT_TEMPLATE.floor, wall: DEFAULT_TEMPLATE.wall },
   objects: initialObjects,
+  onboarded: false,
   character: {
     id: 'c1',
     name: DEFAULT_CHARACTER_NAME,
@@ -81,6 +67,10 @@ interface WorldStore {
   moveObject: (id: string, pos: GridPos, rotation: Rotation) => void;
   removeObject: (id: string) => void;
   resetRoom: () => void;
+  /** Обставить комнату по шаблону (знакомство): предметы, пол и обои, место персонажа. */
+  applyTemplate: (id: string) => void;
+  /** Знакомство пройдено. */
+  setOnboarded: () => void;
   /** Заменить мир целиком: пришёл с сервера (вход с другого устройства, правки с телефона). */
   replaceWorld: (world: World) => void;
   /** Пол и обои: id варианта из scene/roomStyles. */
@@ -153,6 +143,20 @@ export const useWorldStore = create<WorldStore>()(
           const free = nearestWalkable(blocked, s.world.character.pos);
           if (free) s.world.character.pos = free;
           s.teleportSeq += 1;
+        }),
+      applyTemplate: (id) =>
+        set((s) => {
+          const template = ROOM_TEMPLATES.find((item) => item.id === id);
+          if (!template) return;
+          s.world.objects = structuredClone(template.objects);
+          s.world.room.floor = template.floor;
+          s.world.room.wall = template.wall;
+          s.world.character.pos = { ...template.character };
+          s.teleportSeq += 1;
+        }),
+      setOnboarded: () =>
+        set((s) => {
+          s.world.onboarded = true;
         }),
       setRoomStyle: (patch) =>
         set((s) => {

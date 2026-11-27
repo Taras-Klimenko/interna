@@ -17,6 +17,8 @@ export const RoomEvent = z.discriminatedUnion('type', [
   z.object({ type: z.literal('newTracks'), titles: list(text(200), 10) }),
   z.object({ type: z.literal('newObjects'), names: list(text(60), 10) }),
   z.object({ type: z.literal('silence'), minutes: z.number().int().min(0).max(100_000) }),
+  // Знакомство пройдено: комнату только что обставили, персонажу выбрали имя и характер.
+  z.object({ type: z.literal('meeting') }),
 ]);
 export type RoomEvent = z.infer<typeof RoomEvent>;
 
@@ -61,6 +63,8 @@ export function describeEvent(event: RoomEvent): string {
       return `В комнате ${event.names.length > 1 ? 'новые вещи' : 'новая вещь'}: ${event.names.join(', ')}`;
     case 'silence':
       return `Давно тихо: ${event.minutes} мин без разговора`;
+    case 'meeting':
+      return 'Знакомство: вы впервые встретились, комната только что обставлена. Поздоровайся, назови себя и коротко скажи, как тебе тут';
   }
 }
 

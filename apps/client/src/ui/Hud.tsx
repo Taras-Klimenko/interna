@@ -87,7 +87,7 @@ export function Hud() {
     <>
       <header className="hud-brand">
         <span className="hud-title">Interna</span>
-        <span className="hud-subtitle">прототип · тестовый персонаж</span>
+        <span className="hud-subtitle">прототип</span>
         <AccountBadge />
       </header>
 

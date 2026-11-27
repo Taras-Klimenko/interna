@@ -37,6 +37,11 @@ interface UiStore {
   /** Персонаж гуляет с вами (иначе он дома, а вы гуляете один). */
   walkTogether: boolean;
   setWalkTogether: (together: boolean) => void;
+  /** Открыт редактор внешности персонажа (из панели персонажа). */
+  appearanceEditor: boolean;
+  setAppearanceEditor: (open: boolean) => void;
+  /** Комнату закрывает полноэкранный редактор внешности — её можно не рисовать. */
+  roomCovered: boolean;
 }
 
 export const useUiStore = create<UiStore>()((set) => ({
@@ -51,6 +56,9 @@ export const useUiStore = create<UiStore>()((set) => ({
   setWalkGoal: (walkGoal) => set({ walkGoal }),
   place: 'room',
   setPlace: (place) => set({ place, walkGoal: null }),
+  appearanceEditor: false,
+  setAppearanceEditor: (appearanceEditor) => set({ appearanceEditor }),
+  roomCovered: false,
   walkTogether: (() => {
     try {
       return localStorage.getItem(TOGETHER_KEY) !== 'false';

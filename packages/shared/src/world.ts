@@ -146,6 +146,10 @@ export interface CharacterAppearance {
   beard: boolean;
   /** Цвет, на который умножается текстура волос. '#ffffff' — исходный цвет. */
   hairColor: string;
+  /** Оттенок кожи. Нет — исходный цвет модели. */
+  skin?: string;
+  /** Цвет одежды. Нет — исходный (тёмный). */
+  outfit?: string;
 }
 
 export interface Character {
@@ -163,4 +167,6 @@ export interface World {
   room: RoomConfig;
   objects: PlacedObject[];
   character: Character;
+  /** Знакомство пройдено (выбраны комната и персонаж). false — новый мир, покажем онбординг. */
+  onboarded?: boolean;
 }

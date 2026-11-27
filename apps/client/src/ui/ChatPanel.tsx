@@ -7,6 +7,10 @@ import { useReaderStore } from '../store/readerStore';
 import { ACTION_ICONS, actionLabel, type RoomAction } from '../chat/actions';
 import { unlockAudio } from '../audio/player';
 import { MemoryView } from './MemoryView';
+import { canListen, canSpeak, startListening, stopSpeaking, unlockSpeech, useVoiceStore } from '../audio/voice';
+
+/** Дольше этого держали микрофон — «нажал и говори»: отпустили — отправили. Короче — нажали ещё раз, чтобы отправить. */
+const HOLD_MS = 350;
 
 /** Когда до дневного лимита остаётся столько сообщений, показываем счётчик. */
 const SHOW_REMAINING_BELOW = 10;
@@ -23,6 +27,10 @@ export function ChatPanel() {
   const account = useAccountStore((s) => s.status);
   const name = useWorldStore((s) => s.world.character.name);
   const [draft, setDraft] = useState('');
+  const voiceReply = useVoiceStore((s) => s.reply);
+  /** Слушаем микрофон — текст в поле ввода меняется по мере распознавания. */
+  const [listening, setListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   /** Вместо разговора — что персонаж помнит. */
   const [showMemory, setShowMemory] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -61,12 +69,16 @@ export function ChatPanel() {
   const remaining = limit - used;
   const canSend = status === 'ready' && !pending && draft.trim().length > 0 && remaining > 0;
 
-  const submit = async (e?: FormEvent) => {
+  const canTalk = status === 'ready' && !pending && remaining > 0;
+
+  const submit = async (e?: FormEvent, spoken?: string) => {
     e?.preventDefault();
-    if (!canSend) return;
+    const text = spoken ?? draft;
+    if (!canTalk || !text.trim()) return;
     // Персонаж может включить музыку по ходу ответа, а браузеры дают звук только в ответ на нажатие.
     unlockAudio();
-    const text = draft;
+    unlockSpeech();
+    setVoiceError(null);
     setDraft('');
     const ok = await useChatStore.getState().send(text);
     // Не получилось — возвращаем текст, чтобы не набирать заново.
@@ -106,6 +118,22 @@ export function ChatPanel() {
               aria-label={showMemory ? 'Вернуться к разговору' : 'Что помнит персонаж'}
             >
               {showMemory ? '💬' : '🧠'}
+            </button>
+          )}
+          {canSpeak() && (
+            <button
+              type="button"
+              className="sheet-close"
+              onClick={() => {
+                unlockSpeech();
+                if (voiceReply) stopSpeaking();
+                useVoiceStore.getState().set({ reply: !voiceReply });
+              }}
+              aria-pressed={voiceReply}
+              title={voiceReply ? 'Отвечает голосом — выключить' : 'Отвечать голосом'}
+              aria-label={voiceReply ? 'Не отвечать голосом' : 'Отвечать голосом'}
+            >
+              {voiceReply ? '🔊' : '🔈'}
             </button>
           )}
           {status === 'ready' && !showMemory && messages.length > 0 && (
@@ -171,9 +199,9 @@ export function ChatPanel() {
                 </div>
               </>
             )}
-            {error && (
+            {(voiceError ?? error) && (
               <p className="chat-error" role="alert">
-                {error}
+                {voiceError ?? error}
               </p>
             )}
           </div>
@@ -185,12 +213,22 @@ export function ChatPanel() {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onInputKey}
-              placeholder={remaining > 0 ? 'Сообщение…' : 'На сегодня сообщения закончились'}
+              placeholder={listening ? 'Говорите…' : remaining > 0 ? 'Сообщение…' : 'На сегодня сообщения закончились'}
               aria-label="Сообщение"
               rows={1}
               maxLength={2000}
               disabled={status !== 'ready' || remaining <= 0}
+              readOnly={listening}
             />
+            {canListen() && (
+              <MicButton
+                disabled={!canTalk}
+                onListening={setListening}
+                onText={setDraft}
+                onDone={(text) => void submit(undefined, text)}
+                onError={setVoiceError}
+              />
+            )}
             <button type="submit" className="chat-send" disabled={!canSend} aria-label="Отправить">
               ↑
             </button>
@@ -201,6 +239,92 @@ export function ChatPanel() {
         </>
       )}
     </aside>
+  );
+}
+
+/**
+ * Микрофон: нажмите и держите, пока говорите, — отпустили, и сказанное отправилось.
+ * Или коротко нажмите, скажите и нажмите ещё раз. Пока вы говорите, персонаж замолкает.
+ */
+function MicButton({
+  disabled,
+  onListening,
+  onText,
+  onDone,
+  onError,
+}: {
+  disabled: boolean;
+  onListening: (listening: boolean) => void;
+  onText: (text: string) => void;
+  onDone: (text: string) => void;
+  onError: (message: string | null) => void;
+}) {
+  const [active, setActive] = useState(false);
+  const session = useRef<{ stop: () => void; abort: () => void } | null>(null);
+  const pressedAt = useRef(0);
+
+  // Закрыли чат, пока слушали, — бросаем распознавание.
+  useEffect(() => () => session.current?.abort(), []);
+
+  const start = () => {
+    unlockAudio();
+    unlockSpeech();
+    onError(null);
+    setActive(true);
+    onListening(true);
+    let ended = false;
+    const listening = startListening({
+      onText,
+      onEnd: (text) => {
+        ended = true;
+        session.current = null;
+        setActive(false);
+        onListening(false);
+        if (text.trim()) onDone(text);
+        else onText('');
+      },
+      onError,
+    });
+    // Не включился (onEnd пришёл сразу) — сессии нет.
+    if (!ended) session.current = listening;
+  };
+
+  const stop = () => session.current?.stop();
+
+  return (
+    <button
+      type="button"
+      className="chat-mic"
+      data-active={active}
+      disabled={disabled && !active}
+      aria-pressed={active}
+      aria-label={active ? 'Закончить и отправить' : 'Сказать голосом'}
+      title={active ? 'Отпустите или нажмите ещё раз — отправить' : 'Держите и говорите (или нажмите, скажите и нажмите ещё раз)'}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        if (session.current) {
+          stop();
+          return;
+        }
+        pressedAt.current = Date.now();
+        start();
+      }}
+      onPointerUp={() => {
+        // Держали — «нажал и говори»: отпустили, значит, всё сказали.
+        if (session.current && pressedAt.current && Date.now() - pressedAt.current > HOLD_MS) stop();
+        pressedAt.current = 0;
+      }}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        if (session.current) stop();
+        else start();
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      🎤
+    </button>
   );
 }
 

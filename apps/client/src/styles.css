@@ -1650,6 +1650,8 @@ button {
   border-radius: 16px;
   backdrop-filter: blur(8px);
   box-shadow: 0 6px 24px rgba(74, 59, 49, 0.16);
+  max-height: calc(100% - 130px);
+  overflow-y: auto;
   font-size: 13px;
   z-index: 3;
 }
@@ -1791,4 +1793,282 @@ button {
   .settings {
     bottom: 100px;
   }
+}
+
+/* Редактор внешности: на весь экран, персонаж слева, настройки справа (на телефоне — друг под другом). */
+.appearance {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  background: radial-gradient(circle at 35% 45%, #fbf3ea 0%, var(--bg) 70%);
+}
+
+.appearance-preview {
+  position: relative;
+  min-height: 0;
+}
+
+.preview-canvas {
+  position: absolute !important;
+  inset: 0;
+  touch-action: none;
+}
+
+.appearance-hint {
+  position: absolute;
+  bottom: 18px;
+  left: 0;
+  right: 0;
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+
+.appearance-controls {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 24px 22px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--panel);
+  border-left: 1px solid var(--panel-border);
+  font-size: 13px;
+}
+
+.appearance-title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.appearance-subtitle {
+  margin: 4px 0 6px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.appearance-controls .panel-section {
+  padding-top: 14px;
+}
+
+.appearance-controls .swatch {
+  width: 30px;
+  height: 30px;
+}
+
+.appearance-controls .swatch-row {
+  flex-wrap: wrap;
+}
+
+.appearance-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding: 14px 0 18px;
+  background: linear-gradient(transparent, var(--panel) 30%);
+}
+
+.appearance-footer .book-submit,
+.onboarding-actions .book-submit {
+  min-width: 120px;
+  padding: 0 18px;
+}
+
+/* Знакомство */
+.onboarding-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(60, 44, 34, 0.22);
+  backdrop-filter: blur(2px);
+}
+
+.onboarding-card {
+  display: grid;
+  gap: 14px;
+  width: min(440px, 100%);
+  padding: 26px 24px 20px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(60, 44, 34, 0.25);
+  backdrop-filter: blur(10px);
+}
+
+.onboarding-tips {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.onboarding-sheet {
+  top: 16px;
+  max-height: calc(100% - 32px);
+  z-index: 20;
+}
+
+.onboarding-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.onboarding-back {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.onboarding-back:hover {
+  border-color: var(--accent);
+}
+
+.template-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.template:hover {
+  border-color: var(--accent);
+}
+
+.template[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  background: rgba(201, 132, 95, 0.1);
+}
+
+.template-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.template-description {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 767px) {
+  .appearance {
+    grid-template-columns: 1fr;
+    grid-template-rows: 42% minmax(0, 1fr);
+  }
+
+  .appearance-controls {
+    padding: 16px 16px 0;
+    border-left: none;
+    border-top: 1px solid var(--panel-border);
+    border-radius: 18px 18px 0 0;
+  }
+
+  .appearance-hint {
+    bottom: 8px;
+  }
+
+  /* Шаги знакомства — снизу, чтобы комната сверху была видна. */
+  .onboarding-sheet {
+    top: auto;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: 55%;
+  }
+}
+
+/* Голос: микрофон в чате и выбор голоса в настройках */
+.chat-mic {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  font: inherit;
+  font-size: 17px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.chat-mic:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.chat-mic:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.chat-mic[data-active='true'] {
+  border-color: #c0533a;
+  background: #f6d9cf;
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+  50% {
+    box-shadow: 0 0 0 5px rgba(192, 83, 58, 0.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-mic[data-active='true'] {
+    animation: none;
+  }
+}
+
+.settings-voice select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+.settings .check + .settings-row,
+.settings .check + .settings-note {
+  margin-top: 8px;
 }

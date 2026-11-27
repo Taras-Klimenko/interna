@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useAnimations, useGLTF } from '@react-three/drei';
 import {
+  Color,
   LoopOnce,
   LoopRepeat,
   Material,
@@ -14,7 +15,7 @@ import {
 } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { CharacterAppearance } from '@interna/shared';
-import { ANIMATION_URLS, BEARD_URL, BODY_URL, hairUrl, isLoopClip } from './assets';
+import { ANIMATION_URLS, BEARD_URL, BODY_URL, DEFAULT_OUTFIT, DEFAULT_SKIN, hairUrl, isLoopClip } from './assets';
 
 const FADE = 0.25;
 
@@ -43,6 +44,14 @@ export function CharacterModel({ appearance, clip, onClipFinished }: Props) {
   }, [body.scene]);
 
   const skeleton = useMemo(() => findSkeleton(model), [model]);
+  const tint = useMemo(() => addBodyTint(model), [model]);
+
+  // Кожа и одежда — перекраска в шейдере тела (см. addBodyTint).
+  useEffect(() => {
+    // Color.set переводит hex из sRGB в линейные сами — дополнительно конвертировать не нужно.
+    tint.skin.value.set(appearance.skin ?? DEFAULT_SKIN);
+    tint.outfit.value.set(appearance.outfit ?? DEFAULT_OUTFIT);
+  }, [tint, appearance.skin, appearance.outfit]);
   const { actions, mixer } = useAnimations(clips, group);
 
   // Плавный переход между клипами.
@@ -127,6 +136,59 @@ function Attachment({ url, skeleton, color }: AttachmentProps) {
   }, [meshes, color]);
 
   return null;
+}
+
+/**
+ * Средние цвета кожи и одежды в текстуре тела (линейные, посчитаны по текстурам набора). Текстура одна на всё тело:
+ * кожа в ней тёплая и насыщенная, а облегающий комплект — серый. Шейдер отличает их по насыщенности
+ * и перекрашивает по отдельности: кожу — пропорционально, сохраняя тени и румянец, одежду — по её яркости.
+ */
+const SKIN_REFERENCE = new Color(0.4, 0.185, 0.085);
+const CLOTH_REFERENCE = 0.04;
+
+interface BodyTint {
+  skin: { value: Color };
+  outfit: { value: Color };
+}
+
+/** Добавить перекраску кожи и одежды в материал тела. Возвращает цвета-«ручки» (линейные). */
+function addBodyTint(model: Object3D): BodyTint {
+  // useMemo в StrictMode вызывается дважды: второй раз отдаём те же «ручки», что уже подключены к шейдеру.
+  const existing = model.userData.bodyTint as BodyTint | undefined;
+  if (existing) return existing;
+  const skin = { value: new Color().set(DEFAULT_SKIN) };
+  const outfit = { value: new Color().set(DEFAULT_OUTFIT) };
+  model.userData.bodyTint = { skin, outfit } satisfies BodyTint;
+  model.traverse((object) => {
+    if (!(object instanceof SkinnedMesh)) return;
+    for (const material of asArray(object.material)) {
+      // Тело — материал MI_Superhero_*; глаза и брови не трогаем.
+      if (!(material instanceof MeshStandardMaterial) || !material.name.includes('Superhero')) continue;
+      material.onBeforeCompile = (shader) => {
+        shader.uniforms.uSkin = skin;
+        shader.uniforms.uOutfit = outfit;
+        shader.uniforms.uSkinRef = { value: SKIN_REFERENCE };
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nuniform vec3 uSkin;\nuniform vec3 uOutfit;\nuniform vec3 uSkinRef;')
+          .replace(
+            '#include <map_fragment>',
+            `#include <map_fragment>
+            {
+              vec3 c = diffuseColor.rgb;
+              float saturation = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+              float cloth = 1.0 - smoothstep(0.02, 0.06, saturation);
+              vec3 skinColor = c * (uSkin / uSkinRef);
+              float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
+              vec3 clothColor = uOutfit * clamp(luma / ${CLOTH_REFERENCE.toFixed(3)}, 0.4, 1.6);
+              diffuseColor.rgb = mix(skinColor, clothColor, cloth);
+            }`,
+          );
+      };
+      material.customProgramCacheKey = () => 'body-tint';
+      material.needsUpdate = true;
+    }
+  });
+  return { skin, outfit };
 }
 
 function prepareMeshes(root: Object3D) {

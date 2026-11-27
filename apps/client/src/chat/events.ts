@@ -5,6 +5,7 @@ import { useWorldStore } from '../store/worldStore';
 import { useEditorStore } from '../store/editorStore';
 import { useReaderStore } from '../store/readerStore';
 import { useChatStore } from '../store/chatStore';
+import { useUiStore } from '../store/uiStore';
 
 /**
  * Замечаем, что произошло в комнате, и просим персонажа откликнуться: хозяин поставил книгу, повесил фото,
@@ -108,7 +109,15 @@ export function startRoomEvents(userId: string) {
       queue = [];
       return;
     }
-    if (chat.pending || useReaderStore.getState().open || useEditorStore.getState().active || document.visibilityState !== 'visible') {
+    if (
+      chat.pending ||
+      useReaderStore.getState().open ||
+      useEditorStore.getState().active ||
+      // Идёт знакомство или открыт редактор внешности — откликнется потом.
+      useWorldStore.getState().world.onboarded === false ||
+      useUiStore.getState().appearanceEditor ||
+      document.visibilityState !== 'visible'
+    ) {
       schedule(RETRY_MS);
       return;
     }

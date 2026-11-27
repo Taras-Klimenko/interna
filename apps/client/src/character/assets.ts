@@ -24,6 +24,16 @@ export function hairUrl(id: string) {
   return `${BASE}/hair/${id}.glb`;
 }
 
+/**
+ * Оттенки кожи (от светлого к тёмному). Первый — исходный цвет текстуры модели: его же берём, если оттенок не выбран.
+ */
+export const SKIN_TONES = ['#aa7852', '#f1c9a5', '#e0ac85', '#c68a5e', '#8d5a3b', '#6b4129', '#4a2c1d'];
+export const DEFAULT_SKIN = SKIN_TONES[0]!;
+
+/** Цвет одежды (в модели — облегающий комплект). Первый — исходный тёмный. */
+export const OUTFIT_COLORS = ['#1e1e22', '#e8e4dc', '#2c3e66', '#a33b3b', '#3f6b46', '#c9a03a', '#8f7bb8', '#d9849a'];
+export const DEFAULT_OUTFIT = OUTFIT_COLORS[0]!;
+
 /** Множитель для текстуры волос; белый — исходный цвет текстуры. */
 export const HAIR_COLORS = ['#ffffff', '#8a5a3c', '#3a2a22', '#e0b77a', '#b5513a', '#9aa0a8'];
 

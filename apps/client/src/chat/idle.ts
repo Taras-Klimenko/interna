@@ -8,6 +8,7 @@ import { useCharacterStore } from '../store/characterStore';
 import { useEditorStore } from '../store/editorStore';
 import { useReaderStore } from '../store/readerStore';
 import { useUiStore } from '../store/uiStore';
+import { useWorldStore } from '../store/worldStore';
 
 /**
  * Тихие минуты: пока вы в комнате и не разговариваете, персонаж раз в несколько минут сам решает,
@@ -46,7 +47,7 @@ export async function decideNow(): Promise<IdleDecision | null> {
   // Пока модель думала, вы могли заговорить или попросить персонажа о чём-то — тогда решение уже ни к чему.
   if (useChatStore.getState().pending || isBusy()) return decision;
   for (const action of decision.actions) performRoomAction(action);
-  if (decision.say) useChatStore.setState({ bubble: { text: decision.say, until: Date.now() + SAY_MS } });
+  if (decision.say) useChatStore.getState().say(decision.say, SAY_MS);
   return decision;
 }
 
@@ -76,7 +77,10 @@ export function startIdleLife() {
       !useChatStore.getState().bubble &&
       !isBusy() &&
       !useEditorStore.getState().active &&
-      !useReaderStore.getState().open;
+      !useReaderStore.getState().open &&
+      // Во время знакомства и в редакторе внешности — не до своих дел.
+      useWorldStore.getState().world.onboarded !== false &&
+      !useUiStore.getState().appearanceEditor;
     // Гуляете один — персонажа рядом нет, тихих минут тоже.
     const alone = useUiStore.getState().place === 'field' && !useUiStore.getState().walkTogether;
     if (!present || !quiet || alone) return;

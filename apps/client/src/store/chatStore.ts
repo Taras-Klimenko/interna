@@ -6,11 +6,22 @@ import { applyRoomActionNow, performRoomAction, type RoomAction } from '../chat/
 import { useAccountStore } from './accountStore';
 import { useCharacterStore } from './characterStore';
 import { useInteractionStore } from './interactionStore';
+import { useUiStore } from './uiStore';
+import { useWorldStore } from './worldStore';
+import { canSpeak, speakStream, stopSpeaking, useVoiceStore } from '../audio/voice';
 
 /** Анимация, пока персонаж отвечает. */
 export const TALK_CLIP = 'Idle_Talking_Loop';
 /** Сколько реплика висит над головой после ответа: зависит от длины, но в разумных пределах. */
 const bubbleMs = (text: string) => Math.min(14_000, Math.max(5_000, text.length * 70));
+/** Сколько реплика висит после того, как прозвучала вслух. */
+const AFTER_SPEECH_MS = 3_500;
+
+/** Отвечать вслух: голос включён, браузер умеет говорить и персонаж рядом (гуляете один — он дома и пишет сообщения). */
+function voiceOn() {
+  const ui = useUiStore.getState();
+  return useVoiceStore.getState().reply && canSpeak() && !(ui.place === 'field' && !ui.walkTogether);
+}
 
 /**
  * loading — грузим историю; disabled — на сервере не настроена модель; ready — можно говорить;
@@ -50,6 +61,8 @@ interface ChatStore {
   /** Хозяин вернулся после перерыва: персонаж рассказывает, что было. false — не получилось (или рано). */
   away: (hoursAway: number) => Promise<boolean>;
   closeAwayStory: () => void;
+  /** Фраза над головой (тихие минуты, приветствие) — вслух, если голос включён. */
+  say: (text: string, ms?: number) => void;
 }
 
 let controller: AbortController | null = null;
@@ -79,18 +92,47 @@ type Stream = (
 ) => Promise<ChatDone>;
 
 export const useChatStore = create<ChatStore>()((set, get) => {
+  /**
+   * Озвучка ответа: реплика над головой показывает то, что уже прозвучало, и висит ещё немного после конца речи.
+   * Говорящая анимация — пока звучит голос.
+   */
+  function startVoice() {
+    let full = '';
+    const stream = speakStream({
+      body: useWorldStore.getState().world.character.appearance.body,
+      onProgress: (spoken) => set({ bubble: { text: spoken, until: Infinity } }),
+      onDone: (finished) => {
+        stopTalking();
+        // Прервали посреди ответа (нажали микрофон) — реплику над головой убираем, ответ дописывается в чате.
+        const text = full || (get().pending ? '' : (get().bubble?.text ?? ''));
+        set({ bubble: text ? { text, until: Date.now() + (finished ? AFTER_SPEECH_MS : bubbleMs(text)) } : null });
+      },
+    });
+    return {
+      feed: stream.feed,
+      cancel: stream.cancel,
+      end: (text: string) => {
+        full = text;
+        stream.end(text);
+      },
+    };
+  }
+
   /** Общий путь для реплики и события: ответ потоком, действия сразу, реплика над головой. */
   async function reply(kind: 'message' | 'event', question: string, stream: Stream) {
     controller = new AbortController();
+    // Голос — до того, как показать «думает»: начало новой речи обрывает прежнюю, и та убирает свою реплику.
+    const voice = voiceOn() ? startVoice() : null;
     set({ pending: { kind, question, answer: '', actions: [] }, error: null, bubble: { text: '', until: Infinity } });
     startTalking();
     try {
       const done = await stream(
-        (delta) =>
-          set((s) => {
-            const answer = (s.pending?.answer ?? '') + delta;
-            return { pending: s.pending && { ...s.pending, answer }, bubble: { text: answer, until: Infinity } };
-          }),
+        (delta) => {
+          const answer = (get().pending?.answer ?? '') + delta;
+          // С голосом реплика над головой идёт за речью, а не за текстом.
+          set((s) => ({ pending: s.pending && { ...s.pending, answer }, ...(voice ? {} : { bubble: { text: answer, until: Infinity } }) }));
+          voice?.feed(answer);
+        },
         (action) => {
           // Персонаж берётся за дело сразу, не дожидаясь конца ответа.
           performRoomAction(action);
@@ -110,11 +152,13 @@ export const useChatStore = create<ChatStore>()((set, get) => {
         pending: null,
         used: done.used,
         limit: done.limit,
-        bubble: { text: done.message.text, until: Date.now() + bubbleMs(done.message.text) },
+        bubble: voice ? s.bubble : { text: done.message.text, until: Date.now() + bubbleMs(done.message.text) },
         unread: s.unread || !s.open,
       }));
+      voice?.end(done.message.text);
       return true;
     } catch (error) {
+      voice?.cancel();
       if ((error as { status?: number }).status === 401) useAccountStore.getState().expire();
       const aborted = controller?.signal.aborted;
       // Событие без ответа — не беда: показывать ошибку не нужно, персонаж просто промолчал.
@@ -122,7 +166,8 @@ export const useChatStore = create<ChatStore>()((set, get) => {
       return false;
     } finally {
       controller = null;
-      stopTalking();
+      // С голосом анимацию остановит конец речи.
+      if (!voice) stopTalking();
     }
   }
 
@@ -196,10 +241,10 @@ export const useChatStore = create<ChatStore>()((set, get) => {
         for (const action of story.actions) applyRoomActionNow(action);
         set((s) => ({
           messages: [...s.messages, story.asked, story.message],
-          bubble: { text: story.message.text, until: Date.now() + bubbleMs(story.message.text) },
           awayStory: story.moments.length > 0 ? { moments: story.moments, hoursAway } : null,
           unread: s.unread || !s.open,
         }));
+        get().say(story.message.text);
         return true;
       } catch {
         // Рано (уже рассказывал), нет связи — ничего страшного: без рассказа комната та же.
@@ -209,6 +254,17 @@ export const useChatStore = create<ChatStore>()((set, get) => {
     },
 
     closeAwayStory: () => set({ awayStory: null }),
+
+    say: (text, ms = bubbleMs(text)) => {
+      if (!voiceOn()) {
+        set({ bubble: { text, until: Date.now() + ms } });
+        return;
+      }
+      const voice = startVoice();
+      set({ bubble: { text: '', until: Infinity } });
+      startTalking();
+      voice.end(text);
+    },
 
     clear: async () => {
       const { token } = useAccountStore.getState();
@@ -228,6 +284,7 @@ export const useChatStore = create<ChatStore>()((set, get) => {
 useAccountStore.subscribe((state, previous) => {
   if (state.status !== 'signed-in' && previous.status === 'signed-in') {
     controller?.abort();
+    stopSpeaking();
     useChatStore.setState({ status: 'idle', messages: [], pending: null, userId: null, bubble: null, error: null, unread: false, awayStory: null });
   }
 });
