@@ -4,6 +4,7 @@ import { useWorldStore } from '../store/worldStore';
 import { WALK_CLIP } from '../character/assets';
 import { useUiStore } from '../store/uiStore';
 import { startFieldSounds, type AudioGraph } from './fieldSounds';
+import { startBeachSounds } from './beachSounds';
 
 /**
  * Звуки комнаты: шаги персонажа, щелчок выключателя, полив, дождь за окном (по желанию). На прогулке —
@@ -178,17 +179,18 @@ export function startAmbience() {
   window.addEventListener('pointerdown', unlock, { once: true });
   window.addEventListener('keydown', unlock, { once: true });
 
-  // На прогулке — звуки поля (ветер, птицы, сверчки, шорох травы), дома — тишина комнаты.
+  // На прогулке — звуки места: в поле ветер, птицы, сверчки и шорох травы, на пляже прибой и чайки; дома — тишина комнаты.
   let stopField: (() => void) | null = null;
-  const syncPlace = (place: string) => {
-    if (place === 'field' && !stopField) stopField = startFieldSounds(graph);
-    if (place !== 'field' && stopField) {
-      stopField();
-      stopField = null;
-    }
+  let playing: string | null = null;
+  const syncPlace = (place: string, biome: string) => {
+    const want = place === 'field' ? biome : null;
+    if (want === playing) return;
+    stopField?.();
+    stopField = want === 'beach' ? startBeachSounds(graph) : want ? startFieldSounds(graph) : null;
+    playing = want;
   };
-  syncPlace(useUiStore.getState().place);
-  const unsubscribePlace = useUiStore.subscribe((state) => syncPlace(state.place));
+  syncPlace(useUiStore.getState().place, useUiStore.getState().biome);
+  const unsubscribePlace = useUiStore.subscribe((state) => syncPlace(state.place, state.biome));
 
   const unsubscribeSettings = useSoundStore.subscribe((state) => {
     if (master && ctx) master.gain.setTargetAtTime(state.volume, ctx.currentTime, 0.05);

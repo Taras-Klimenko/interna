@@ -2,7 +2,10 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { BackSide, Color, Fog, type Mesh, type PerspectiveCamera, ShaderMaterial, SphereGeometry, type Group } from 'three';
 import { Chunk, DENSITY } from './Chunk';
-import { CHUNK_SIZE, FOG_FAR, FOG_NEAR, GRASS_RADIUS, GROUND_RADIUS, canStandAt, chunkOf, heightAt } from './terrain';
+import { CHUNK_SIZE, FOG_FAR, FOG_NEAR, GRASS_RADIUS, GROUND_RADIUS, chunkOf } from './terrain';
+import { terrain } from './biomes';
+import { BeachChunk } from './BeachChunk';
+import { Ocean } from './Ocean';
 import { REBASE_DISTANCE, companion, origin, walker } from './fieldState';
 import { windUniforms } from './wind';
 import { liveLighting } from '../scene/DayLight';
@@ -40,6 +43,8 @@ export function FieldScene() {
   const density = DENSITY[tier];
   // Персонаж гуляет с вами или остался дома.
   const together = useUiStore((s) => s.walkTogether);
+  // Где гуляем: поле или пляж. Ходьба, персонаж и небо общие, а земля у каждого места своя.
+  const biome = useUiStore((s) => s.biome);
   const [center, setCenter] = useState(() => chunkOf(walker.x, walker.z));
 
   // Вы перешли в соседний чанк — пересобираем список чанков вокруг (сами чанки кэширует React по ключу).
@@ -71,15 +76,21 @@ export function FieldScene() {
     <>
       <SkyAndFog />
       <WalkerRig />
+      {/* Море — вне группы мира: оно само следует за камерой. */}
+      {biome === 'beach' && <Ocean onClick={onGroundClick} />}
       <group
         ref={(group) => {
           worldGroup.current = group;
         }}
         position={[-origin.x, 0, -origin.z]}
       >
-        {chunks.map((chunk) => (
-          <Chunk key={chunk.key} cx={chunk.cx} cz={chunk.cz} grass={chunk.grass} density={density} onGroundClick={onGroundClick} />
-        ))}
+        {chunks.map((chunk) =>
+          biome === 'beach' ? (
+            <BeachChunk key={`beach:${chunk.key}`} cx={chunk.cx} cz={chunk.cz} near={chunk.grass} density={density} onGroundClick={onGroundClick} />
+          ) : (
+            <Chunk key={chunk.key} cx={chunk.cx} cz={chunk.cz} grass={chunk.grass} density={density} onGroundClick={onGroundClick} />
+          ),
+        )}
         {together && (
           <Suspense fallback={null}>
             <Companion />
@@ -244,11 +255,11 @@ function WalkerRig() {
     let moved = false;
     if (dx || dz) {
       // По осям отдельно: упёрлись в дерево — скользим вдоль него.
-      if (canStandAt(walker.x + dx, walker.z, WALKER_RADIUS)) {
+      if (dx && terrain().canStandAt(walker.x + dx, walker.z, WALKER_RADIUS)) {
         walker.x += dx;
         moved = true;
       }
-      if (canStandAt(walker.x, walker.z + dz, WALKER_RADIUS)) {
+      if (dz && terrain().canStandAt(walker.x, walker.z + dz, WALKER_RADIUS)) {
         walker.z += dz;
         moved = true;
       }
@@ -264,7 +275,7 @@ function WalkerRig() {
     }
     windUniforms.uOrigin.value.set(origin.x, origin.z);
     worldGroup.current?.position.set(-origin.x, 0, -origin.z);
-    const ground = heightAt(walker.x, walker.z);
+    const ground = terrain().heightAt(walker.x, walker.z);
     camera.position.set(walker.x - origin.x, ground + EYE_HEIGHT + Math.sin(bob.current) * 0.025, walker.z - origin.z);
     camera.rotation.set(walker.pitch, walker.yaw, 0, 'YXZ');
   });
@@ -284,6 +295,8 @@ const COMPANION_WALK = 1.25;
 const COMPANION_RUN = 3.4;
 const JOG_CLIP = 'Jog_Fwd_Loop';
 /** Отклонения от прямого пути при обходе дерева (рад): прямо, чуть вбок, сильнее вбок. */
+/** Ближе этого к вам персонаж не подходит. */
+const KEEP_APART = 0.8;
 const AVOID_TURNS = [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8];
 
 /** Персонаж на прогулке: идёт рядом, отстал — догоняет, остановились — поворачивается к вам. */
@@ -323,7 +336,9 @@ function Companion() {
         const angle = heading + turn;
         const nx = companion.x + Math.sin(angle) * step;
         const nz = companion.z + Math.cos(angle) * step;
-        if (!canStandAt(nx, nz, 0.22)) continue;
+        // Не встаёт вплотную к вам (например, когда место рядом с вами — на глубине, куда не зайти).
+        const apart = Math.hypot(nx - walker.x, nz - walker.z);
+        if (!terrain().canStandAt(nx, nz, 0.22) || (apart < KEEP_APART && apart < Math.hypot(companion.x - walker.x, companion.z - walker.z))) continue;
         companion.x = nx;
         companion.z = nz;
         yaw.current = angle;
@@ -341,7 +356,7 @@ function Companion() {
     let diff = yaw.current - companion.yaw;
     diff = ((((diff + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) - Math.PI;
     companion.yaw += diff * (1 - Math.exp(-8 * delta));
-    const y = heightAt(companion.x, companion.z);
+    const y = terrain().heightAt(companion.x, companion.z);
     group.position.set(companion.x, y, companion.z);
     group.rotation.y = companion.yaw;
     // Реплика над головой следует за персонажем и здесь (она рисуется вне группы мира — в сдвинутых координатах).

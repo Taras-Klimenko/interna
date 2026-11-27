@@ -4,7 +4,7 @@ import { Color, type DirectionalLight, type HemisphereLight } from 'three';
 import { useUiStore } from '../store/uiStore';
 import { blendLighting, createLighting, hourFor, lightingAt } from './timeOfDay';
 import { origin, walker } from '../field/fieldState';
-import { heightAt } from '../field/terrain';
+import { terrain } from '../field/biomes';
 
 /** Насколько быстро свет догоняет новое время суток при переключении (больше — быстрее). */
 const TRANSITION_SPEED = 3;
@@ -66,7 +66,7 @@ export function DayLight() {
       // Свет — в координатах сцены, то есть со сдвигом на плавающий центр мира.
       const ax = outside ? walker.x - origin.x : 0;
       const az = outside ? walker.z - origin.z : 0;
-      const ay = outside ? heightAt(walker.x, walker.z) : 0;
+      const ay = outside ? terrain().heightAt(walker.x, walker.z) : 0;
       s.position.copy(live.sunPosition).add({ x: ax, y: ay, z: az });
       s.target.position.set(ax, ay, az);
       s.target.updateMatrixWorld();

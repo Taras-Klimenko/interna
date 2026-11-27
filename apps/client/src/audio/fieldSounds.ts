@@ -13,16 +13,16 @@ export interface AudioGraph {
 }
 
 /** Шаг по траве — каждые столько метров (бегом шаги чаще сами собой). */
-const STEP_METERS = 0.75;
+export const STEP_METERS = 0.75;
 
-/** Короткий шорох травы: высокий шум с быстрым спадом, в каждой стороне чуть по-своему. */
-function rustle({ ctx, master, noise }: AudioGraph, gain: number, pan: number) {
+/** Короткий шорох травы (или песка — пониже, base): шум с быстрым спадом, в каждой стороне чуть по-своему. */
+export function rustle({ ctx, master, noise }: AudioGraph, gain: number, pan: number, base = 1800) {
   const at = ctx.currentTime;
   const source = ctx.createBufferSource();
   source.buffer = noise;
   const filter = ctx.createBiquadFilter();
   filter.type = 'bandpass';
-  filter.frequency.value = 1800 + Math.random() * 1600;
+  filter.frequency.value = base + Math.random() * base * 0.9;
   filter.Q.value = 0.9;
   const env = ctx.createGain();
   env.gain.setValueAtTime(0, at);
@@ -63,7 +63,7 @@ function birdSong({ ctx, master }: AudioGraph, loudness: number) {
 }
 
 /** Стрёкот сверчка: высокий тон, который быстро «щёлкает» несколькими пачками. */
-function cricket({ ctx, master }: AudioGraph, loudness: number) {
+export function cricket({ ctx, master }: AudioGraph, loudness: number) {
   const pan = ctx.createStereoPanner();
   pan.pan.value = Math.random() * 1.8 - 0.9;
   pan.connect(master);
@@ -91,7 +91,7 @@ function cricket({ ctx, master }: AudioGraph, loudness: number) {
 }
 
 /** Ветер: ровный низкий шум, громкость и тембр которого медленно «гуляют» — порывы. */
-function startWind({ ctx, master, noise }: AudioGraph) {
+export function startWind({ ctx, master, noise }: AudioGraph, strength = 1) {
   const source = ctx.createBufferSource();
   source.buffer = noise;
   source.loop = true;
@@ -106,7 +106,7 @@ function startWind({ ctx, master, noise }: AudioGraph) {
   // Порывы: раз в несколько секунд новая громкость и «высота» ветра, плавный переход.
   const gust = () => {
     const night = 1 - liveLighting.daylight;
-    const level = (0.07 + Math.random() * 0.1) * (1 - night * 0.45);
+    const level = (0.07 + Math.random() * 0.1) * (1 - night * 0.45) * strength;
     gain.gain.setTargetAtTime(level, ctx.currentTime, 1.2);
     filter.frequency.setTargetAtTime(300 + Math.random() * 500, ctx.currentTime, 1.5);
   };

@@ -68,6 +68,7 @@ export function buildChatContext(): ChatContext {
     hour: Math.floor(hourFor(useUiStore.getState().timeMode)) % 24,
     ownerInside: useUiStore.getState().firstPerson,
     place: useUiStore.getState().place,
+    biome: useUiStore.getState().biome,
     together: useUiStore.getState().place !== 'field' || useUiStore.getState().walkTogether,
     objects: outside ? [] : objects,
     books,

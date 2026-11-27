@@ -40,9 +40,9 @@ function bladeGeometry() {
   return geometry;
 }
 
-const BLADE = bladeGeometry();
-const GRASS_MATERIAL = windMaterial({ color: '#ffffff' }, 0.18, true);
-const GROUND_MATERIAL = new MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+export const BLADE = bladeGeometry();
+export const GRASS_MATERIAL = windMaterial({ color: '#ffffff' }, 0.18, true);
+export const GROUND_MATERIAL = new MeshStandardMaterial({ vertexColors: true, roughness: 1 });
 
 const GRASS_DRY = new Color('#b4c063');
 const GRASS_LUSH = new Color('#6aa844');
@@ -55,8 +55,14 @@ const SEGMENTS = 24;
  * Земля чанка: сетка с высотами из шума и цветом «сочности» травы. Нормали — по самой функции высоты, без швов
  * между чанками. Координаты вершин — от угла чанка (маленькие числа: видеокарте так точнее), высоты — по мировым.
  */
-function groundGeometry(cx: number, cz: number) {
-  const geometry = new PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, SEGMENTS, SEGMENTS).rotateX(-Math.PI / 2).translate(CHUNK_SIZE / 2, 0, CHUNK_SIZE / 2);
+export function groundGeometry(
+  cx: number,
+  cz: number,
+  height: (x: number, z: number) => number = heightAt,
+  paint: (x: number, z: number, target: Color) => Color = (x, z, target) => target.copy(GROUND_DRY).lerp(GROUND_LUSH, lushness(x, z)),
+  segments = SEGMENTS,
+) {
+  const geometry = new PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, segments, segments).rotateX(-Math.PI / 2).translate(CHUNK_SIZE / 2, 0, CHUNK_SIZE / 2);
   const ox = cx * CHUNK_SIZE;
   const oz = cz * CHUNK_SIZE;
   const position = geometry.getAttribute('position');
@@ -67,12 +73,12 @@ function groundGeometry(cx: number, cz: number) {
   for (let i = 0; i < position.count; i++) {
     const x = position.getX(i) + ox;
     const z = position.getZ(i) + oz;
-    position.setY(i, heightAt(x, z));
-    const nx = heightAt(x - e, z) - heightAt(x + e, z);
-    const nz = heightAt(x, z - e) - heightAt(x, z + e);
+    position.setY(i, height(x, z));
+    const nx = height(x - e, z) - height(x + e, z);
+    const nz = height(x, z - e) - height(x, z + e);
     const n = new Vector3(nx, 2 * e, nz).normalize();
     normal.setXYZ(i, n.x, n.y, n.z);
-    color.copy(GROUND_DRY).lerp(GROUND_LUSH, lushness(x, z));
+    paint(x, z, color);
     colors.set([color.r, color.g, color.b], i * 3);
   }
   geometry.setAttribute('color', new BufferAttribute(colors, 3));
@@ -116,7 +122,7 @@ function grassOf(cx: number, cz: number, count: number) {
 }
 
 /** Одна копия модели в чанке: где стоит (от угла чанка), поворот, масштаб. */
-interface Placement {
+export interface Placement {
   model: string;
   lx: number;
   lz: number;
@@ -164,7 +170,7 @@ function smallThings(cx: number, cz: number, density: Density, obstacles: Obstac
 }
 
 /** Копии моделей → по одному InstancedMesh на каждую часть модели (ствол, листва…). */
-function instancesOf(placements: Placement[], parts: Record<string, NaturePart[]>) {
+export function instancesOf(placements: Placement[], parts: Record<string, NaturePart[]>) {
   const byModel = new Map<string, Placement[]>();
   for (const placement of placements) {
     const list = byModel.get(placement.model) ?? [];

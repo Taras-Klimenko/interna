@@ -8,6 +8,8 @@ export interface ChatContext {
   gender: 'female' | 'male';
   hour: number;
   place: 'room' | 'field';
+  /** Где гуляете: поле или пляж. */
+  biome: 'meadow' | 'beach';
   /** На прогулке: персонаж с вами (иначе дома, и вы переписываетесь). */
   together: boolean;
   ownerInside: boolean;

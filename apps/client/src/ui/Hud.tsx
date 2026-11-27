@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { SettingsPanel } from './SettingsPanel';
-import { useUiStore } from '../store/uiStore';
+import { useUiStore, type Biome } from '../store/uiStore';
+import { BIOME_LABELS, TERRAINS } from '../field/biomes';
 import { PHASE_ICONS, PHASE_LABELS, phaseOf } from '../scene/timeOfDay';
 import { useRoomHour } from './useRoomHour';
 import { useEditorStore } from '../store/editorStore';
@@ -27,14 +28,17 @@ function toggleCompanion() {
   }
 }
 
-/** На прогулку: из любого режима комнаты — в поле за домом, у порога. */
-function goOutside() {
+/** На прогулку — в поле за домом или на пляж. Из комнаты или прямо с другой прогулки: персонаж (если гуляет с вами) — рядом. */
+function goOutside(biome: Biome) {
   useEditorStore.getState().setActive(false);
   useUiStore.getState().setFirstPerson(false);
   useInteractionStore.getState().reset();
-  resetWalk();
+  useUiStore.getState().setBiome(biome);
+  resetWalk(TERRAINS[biome].start);
   useUiStore.getState().setPlace('field');
 }
+
+const BIOMES: Biome[] = ['meadow', 'beach'];
 
 export function Hud() {
   const showGrid = useUiStore((s) => s.showGrid);
@@ -48,6 +52,9 @@ export function Hud() {
   const firstPerson = useUiStore((s) => s.firstPerson) && !editing;
   const setFirstPerson = useUiStore((s) => s.setFirstPerson);
   const outside = useUiStore((s) => s.place === 'field');
+  const biome = useUiStore((s) => s.biome);
+  /** Открыт выбор, куда пойти гулять. */
+  const [walkMenu, setWalkMenu] = useState(false);
   const walkTogether = useUiStore((s) => s.walkTogether);
   const characterName = useWorldStore((s) => s.world.character.name.trim()) || DEFAULT_CHARACTER_NAME;
   const chatOpen = useChatStore((s) => s.open);
@@ -124,10 +131,17 @@ export function Hud() {
             </button>
           </>
         )}
-        {!editing && !outside && (
-          <button type="button" className="hud-inside" onClick={goOutside} title="На прогулку в поле за домом">
-            <span aria-hidden="true">🌼</span>
-            <span className="hud-time-label">Гулять</span>
+        {!editing && (
+          <button
+            type="button"
+            className="hud-inside hud-walk"
+            onClick={() => setWalkMenu((open) => !open)}
+            aria-pressed={walkMenu}
+            aria-haspopup="menu"
+            title={outside ? 'Пойти в другое место' : 'На прогулку'}
+          >
+            <span aria-hidden="true">{outside ? '🧭' : '🌼'}</span>
+            <span className="hud-time-label">{outside ? 'Куда' : 'Гулять'}</span>
           </button>
         )}
         {!editing && !outside && (
@@ -193,6 +207,16 @@ export function Hud() {
       </div>
 
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {walkMenu && (
+        <WalkMenu
+          current={outside ? biome : null}
+          onPick={(next) => {
+            setWalkMenu(false);
+            goOutside(next);
+          }}
+          onClose={() => setWalkMenu(false)}
+        />
+      )}
 
       {outside ? (
         <>
@@ -224,5 +248,38 @@ export function Hud() {
         </>
       )}
     </>
+  );
+}
+
+/** Куда пойти гулять: поле или пляж. На прогулке текущее место отмечено, выбрать его ещё раз — вернуться к началу. */
+function WalkMenu({ current, onPick, onClose }: { current: Biome | null; onPick: (biome: Biome) => void; onClose: () => void }) {
+  useEffect(() => {
+    const onPointer = (e: PointerEvent) => {
+      const target = e.target as Element;
+      if (!target.closest?.('.walk-menu') && !target.closest?.('.hud-walk')) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('pointerdown', onPointer);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerdown', onPointer);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="walk-menu" role="menu" aria-label="Куда пойти">
+      {BIOMES.map((item) => (
+        <button key={item} type="button" role="menuitem" className="walk-option" aria-current={current === item} onClick={() => onPick(item)}>
+          <span className="walk-icon" aria-hidden="true">
+            {BIOME_LABELS[item].icon}
+          </span>
+          <span>
+            <span className="walk-label">{BIOME_LABELS[item].label}</span>
+            <span className="walk-title">{current === item ? 'Вы здесь — вернуться к началу' : BIOME_LABELS[item].title}</span>
+          </span>
+        </button>
+      ))}
+    </div>
   );
 }

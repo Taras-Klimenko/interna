@@ -37,16 +37,17 @@ export function callCompanion() {
   companion.yaw = walker.yaw;
 }
 
-/** Вернуться к началу: у дома, лицом в поле. */
-export function resetWalk() {
-  origin.x = 0;
-  origin.z = 0;
-  walker.x = 0;
-  walker.z = 2;
-  walker.yaw = 0;
+/** Начать прогулку с места start (у каждого места своё): персонаж — рядом, справа позади, смотрит на вас. */
+export function resetWalk(start: { x: number; z: number; yaw: number } = { x: 0, z: 2, yaw: 0 }) {
+  origin.x = Math.round(start.x / 24) * 24;
+  origin.z = Math.round(start.z / 24) * 24;
+  walker.x = start.x;
+  walker.z = start.z;
+  walker.yaw = start.yaw;
   walker.pitch = -0.05;
   walker.target = null;
-  companion.x = 1.2;
-  companion.z = 3.2;
-  companion.yaw = Math.PI;
+  // Вправо от взгляда — (cos, −sin), назад — (sin, cos).
+  companion.x = start.x + Math.cos(start.yaw) * 1.2 + Math.sin(start.yaw) * 1.2;
+  companion.z = start.z - Math.sin(start.yaw) * 1.2 + Math.cos(start.yaw) * 1.2;
+  companion.yaw = start.yaw + Math.PI;
 }

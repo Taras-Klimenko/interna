@@ -31,9 +31,12 @@ interface UiStore {
   /** Куда вы идёте после тапа по полу: для отметки на полу. */
   walkGoal: { x: number; z: number } | null;
   setWalkGoal: (goal: { x: number; z: number } | null) => void;
-  /** Где вы: в комнате или на прогулке в поле за домом. */
+  /** Где вы: в комнате или на прогулке (где именно гуляете — biome). */
   place: 'room' | 'field';
   setPlace: (place: 'room' | 'field') => void;
+  /** Куда пошли гулять: поле за домом или пляж. */
+  biome: Biome;
+  setBiome: (biome: Biome) => void;
   /** Персонаж гуляет с вами (иначе он дома, а вы гуляете один). */
   walkTogether: boolean;
   setWalkTogether: (together: boolean) => void;
@@ -43,6 +46,9 @@ interface UiStore {
   /** Комнату закрывает полноэкранный редактор внешности — её можно не рисовать. */
   roomCovered: boolean;
 }
+
+/** Места для прогулки: поле с цветами за домом и морской берег. */
+export type Biome = 'meadow' | 'beach';
 
 export const useUiStore = create<UiStore>()((set) => ({
   showGrid: true,
@@ -56,6 +62,8 @@ export const useUiStore = create<UiStore>()((set) => ({
   setWalkGoal: (walkGoal) => set({ walkGoal }),
   place: 'room',
   setPlace: (place) => set({ place, walkGoal: null }),
+  biome: 'meadow',
+  setBiome: (biome) => set({ biome }),
   appearanceEditor: false,
   setAppearanceEditor: (appearanceEditor) => set({ appearanceEditor }),
   roomCovered: false,

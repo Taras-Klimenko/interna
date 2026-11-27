@@ -20,6 +20,8 @@ export const ChatContext = z.object({
   ownerInside: z.boolean(),
   /** Где вы с хозяином: в комнате или на прогулке в поле за домом. */
   place: z.enum(['room', 'field']).default('room'),
+  /** Где гуляете: поле за домом или морской берег. */
+  biome: z.enum(['meadow', 'beach']).default('meadow'),
   /** На прогулке персонаж с хозяином (иначе остался дома, и они переписываются). */
   together: z.boolean().default(true),
   objects: list(
